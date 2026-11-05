@@ -147,7 +147,73 @@ def build_demo_weather(location_name="Dhaka, Bangladesh"):
 
 @app.route("/")
 def index():
-    return render_template("landing.html", page_title="AI DisasterGuard")
+    capabilities = [
+        {
+            "number": "01",
+            "icon": "fa-cloud-bolt",
+            "title": "Disaster prediction",
+            "description": "View local weather forecasts and heuristic flood and landslide risk indices. These are not calibrated probabilities or official warnings.",
+            "status": "Live weather · heuristic risk",
+            "link": url_for("weather"),
+        },
+        {
+            "number": "02",
+            "icon": "fa-bell",
+            "title": "Early warning system",
+            "description": "Explore sample alert cards. Official monitoring feeds and delivery to the public are not connected.",
+            "status": "Demo alerts · no dispatch",
+            "link": url_for("module_page", slug="early-warning-center"),
+        },
+        {
+            "number": "03",
+            "icon": "fa-truck-medical",
+            "title": "Emergency response",
+            "description": "Review an illustrative incident coordination workflow. It does not contact emergency services or dispatch rescue teams.",
+            "status": "Demo workflow",
+            "link": url_for("module_page", slug="emergency-response"),
+        },
+        {
+            "number": "04",
+            "icon": "fa-boxes-stacked",
+            "title": "Resource management",
+            "description": "Explore a planning template for food, water, medicine, rescue equipment, and shelter supplies. No live inventory is connected.",
+            "status": "Planning template",
+            "link": url_for("module_page", slug="resource-management"),
+        },
+        {
+            "number": "05",
+            "icon": "fa-route",
+            "title": "Evacuation management",
+            "description": "Review illustrative evacuation priorities. Routes and shelters must be verified by local authorities.",
+            "status": "Demo planning data",
+            "link": url_for("module_page", slug="evacuation-planning"),
+        },
+        {
+            "number": "06",
+            "icon": "fa-tower-broadcast",
+            "title": "Communication system",
+            "description": "See a coordination template for public updates and inter-agency notices. Messaging services are not connected.",
+            "status": "Integration required",
+            "link": url_for("module_page", slug="communication-system"),
+        },
+        {
+            "number": "07",
+            "icon": "fa-hand-holding-medical",
+            "title": "Relief & rehabilitation",
+            "description": "Explore a recovery planning checklist for shelter, medical care, food, and essential needs. No aid delivery is connected.",
+            "status": "Planning template",
+            "link": url_for("module_page", slug="relief-rehabilitation"),
+        },
+        {
+            "number": "08",
+            "icon": "fa-house-crack",
+            "title": "Damage assessment",
+            "description": "Review an illustrative field-assessment workflow for buildings, roads, and infrastructure. No verified damage reports are connected.",
+            "status": "Demo workflow",
+            "link": url_for("module_page", slug="damage-assessment"),
+        },
+    ]
+    return render_template("landing.html", page_title="AI DisasterGuard", capabilities=capabilities)
 
 
 @app.route("/dashboard")
@@ -238,6 +304,38 @@ def module_page(slug):
             "metrics": [("Data availability", "98% demo"), ("Stations reporting", "94% demo"), ("Incidents shown", "9 demo")],
             "items": [("Rainfall trend", "Demo series", "Last 6 months", "Sample chart data"), ("Hazard mix", "Demo series", "Flood / cyclone / landslide", "Sample chart data"), ("Prediction history", "Illustrative", "Not validated", "No trained model history available")],
             "mode": "Demo analytics",
+        },
+        "resource-management": {
+            "title": "Resource Management",
+            "eyebrow": "Relief supply planning",
+            "description": "A planning template for organizing essential supplies and shelter needs. Inventory, stock levels, vendors, and distribution are not connected; entries below are illustrative.",
+            "metrics": [("Supply categories", "5 planning groups"), ("Live inventory", "Not connected"), ("Distribution", "Manual planning")],
+            "items": [("Food and clean water", "Plan", "Relief supplies", "Estimate demand and confirm quantities with local coordinators"), ("Medical supplies", "Plan", "Health support", "Track essential medicines and first-aid requirements"), ("Rescue equipment", "Plan", "Response teams", "Confirm equipment readiness with authorized responders"), ("Shelter capacity", "Plan", "Safe locations", "Use locally verified shelter capacity and accessibility information")],
+            "mode": "Planning template",
+        },
+        "communication-system": {
+            "title": "Communication System",
+            "eyebrow": "Public information and coordination",
+            "description": "A coordination template for organizing notices between agencies, responders, and the public. SMS, email, broadcast, and official information feeds are not connected.",
+            "metrics": [("Message channels", "Not connected"), ("Official feed", "Not connected"), ("Sample notices", "Illustrative only")],
+            "items": [("Public safety update", "Draft", "Public information", "Have an authorized official verify guidance before publication"), ("Responder coordination", "Draft", "Response teams", "Use approved agency communication systems for operational decisions"), ("Situation report", "Draft", "Partner agencies", "Share only verified information through authorized channels")],
+            "mode": "Integration required",
+        },
+        "relief-rehabilitation": {
+            "title": "Relief & Rehabilitation",
+            "eyebrow": "Recovery planning",
+            "description": "A recovery-planning checklist covering shelter, medical care, food, water, and essential services. Beneficiary records and aid distribution are not connected; entries are illustrative.",
+            "metrics": [("Recovery stages", "Response + recovery"), ("Aid delivery", "Not connected"), ("Local verification", "Required")],
+            "items": [("Temporary shelter", "Plan", "Displaced households", "Confirm safe, accessible locations through local authorities"), ("Medical and psychosocial care", "Plan", "Affected people", "Coordinate qualified medical support and referral services"), ("Food and essential needs", "Plan", "Relief distribution", "Confirm needs and delivery with authorized relief organizations"), ("Recovery services", "Plan", "Community recovery", "Assess restoration priorities with affected communities")],
+            "mode": "Planning template",
+        },
+        "damage-assessment": {
+            "title": "Damage Assessment",
+            "eyebrow": "Infrastructure impact review",
+            "description": "An illustrative framework for recording field observations about buildings, roads, and infrastructure. No imagery analysis, verified inspections, or official damage database is connected.",
+            "metrics": [("Assessment method", "Field verification"), ("Imagery analysis", "Not connected"), ("Official reports", "Not connected")],
+            "items": [("Buildings and housing", "Assess", "Field teams", "Record location, observed condition, and inspection time after authorized review"), ("Roads and bridges", "Assess", "Transport links", "Document access constraints and refer safety concerns to responsible agencies"), ("Utilities and public services", "Assess", "Critical infrastructure", "Report verified service disruptions to the relevant operators")],
+            "mode": "Demo workflow",
         },
         "disaster-risk-map": {
             "title": "Disaster Risk Map",

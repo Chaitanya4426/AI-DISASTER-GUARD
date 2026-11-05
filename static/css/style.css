@@ -430,6 +430,202 @@ button, input, select {
   padding: 28px 26px;
 }
 
+.capability-hero {
+  grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+  padding-bottom: 12px;
+}
+
+.capability-hero .hero-copy h2 {
+  max-width: 700px;
+}
+
+.capability-hero .hero-copy p {
+  line-height: 1.75;
+}
+
+.capability-hero .cta-row {
+  margin-top: 20px;
+}
+
+.capability-hero-image {
+  position: relative;
+  min-height: 320px;
+  overflow: hidden;
+  border: 1px solid var(--glass-border);
+  border-radius: 22px;
+  background: #123b52;
+  box-shadow: var(--shadow);
+}
+
+.capability-hero-image::after {
+  position: absolute;
+  inset: 30% 0 0;
+  content: "";
+  background: linear-gradient(180deg, transparent, rgba(7, 31, 48, 0.82));
+}
+
+.capability-hero-image img {
+  width: 100%;
+  height: 100%;
+  min-height: 320px;
+  object-fit: cover;
+}
+
+.capability-hero-image > span {
+  position: absolute;
+  z-index: 1;
+  right: 20px;
+  bottom: 20px;
+  left: 20px;
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.capability-hero-image > span i {
+  margin-right: 7px;
+  color: #9ce8dc;
+}
+
+.capability-section {
+  margin-top: 28px;
+}
+
+.capability-section .title-row {
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.capability-section .title-row .section-tag {
+  flex-basis: 100%;
+  width: fit-content;
+}
+
+.capability-section .title-row h3 {
+  flex-basis: 100%;
+}
+
+.capability-section .title-row .module-description {
+  flex-basis: 100%;
+  margin: -8px 0 0;
+}
+
+.capability-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.capability-card {
+  display: flex;
+  min-width: 0;
+  min-height: 255px;
+  flex-direction: column;
+  padding: 20px;
+  color: var(--text);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.075), transparent 54%),
+    var(--glass-panel);
+  border: 1px solid var(--glass-border);
+  border-radius: 18px;
+  box-shadow: 0 12px 28px rgba(16, 38, 59, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(16px) saturate(135%);
+  -webkit-backdrop-filter: blur(16px) saturate(135%);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.capability-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--teal);
+  box-shadow: 0 18px 34px rgba(16, 38, 59, 0.12);
+}
+
+.capability-card:focus-visible {
+  outline: 3px solid var(--teal);
+  outline-offset: 3px;
+}
+
+.capability-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.capability-number {
+  color: var(--text-soft);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.capability-card-top i {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  color: var(--primary);
+  background: var(--primary-soft);
+  border-radius: 13px;
+  font-size: 1.15rem;
+}
+
+.capability-card h4 {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+}
+
+.capability-card p {
+  flex: 1;
+  margin: 0 0 15px;
+  color: var(--text-soft);
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+
+.capability-status {
+  align-self: flex-start;
+  padding: 6px 9px;
+  color: var(--text-soft);
+  background: var(--surface);
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.capability-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 15px;
+  color: var(--primary);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.capability-disclaimer {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 28px 0 0;
+  padding: 17px 18px;
+  color: var(--text-soft);
+  background: var(--warning-soft);
+  border: 1px solid rgba(238, 154, 37, 0.18);
+  border-radius: 16px;
+}
+
+.capability-disclaimer > i {
+  margin-top: 3px;
+  color: var(--warning);
+}
+
+.capability-disclaimer p {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
 .eyebrow,
 .section-tag {
   display: inline-block;
@@ -1802,6 +1998,14 @@ button, input, select {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .capability-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .capability-hero {
+    grid-template-columns: 1fr;
+  }
+
   .chart-grid,
   .info-grid,
   .category-grid,
@@ -1923,6 +2127,11 @@ button, input, select {
     grid-template-columns: 1fr;
   }
 
+  .capability-hero-image,
+  .capability-hero-image img {
+    min-height: 240px;
+  }
+
   .contact-section {
     flex-direction: column;
     align-items: flex-start;
@@ -1930,6 +2139,10 @@ button, input, select {
 }
 
 @media (max-width: 480px) {
+  .capability-grid {
+    grid-template-columns: 1fr;
+  }
+
   .module-shortcuts {
     grid-template-columns: 1fr;
   }

@@ -1,155 +1,58 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="hero-section">
+<section class="hero-section capability-hero">
   <div class="hero-copy">
-    <span class="eyebrow">AI-Driven disaster intelligence</span>
-    <h2>Early warnings that help communities act before disaster strikes.</h2>
+    <span class="eyebrow">Disaster management · preparedness to recovery</span>
+    <h2>One clear view of the disaster response lifecycle.</h2>
     <p>
-      AI DisasterGuard combines environmental monitoring, predictive analytics, GIS intelligence,
-      and real-time alerts to detect flood, cyclone, and landslide risks with a clear operational view.
+      Explore eight connected areas for preparedness, response, and recovery.
+      Live weather and location-based heuristic risk indices are available; operational services and
+      official data feeds are identified where they still need integration.
     </p>
     <div class="cta-row">
-      <a href="{{ url_for('dashboard') }}" class="primary-btn">Explore Dashboard</a>
-      <a href="{{ url_for('dashboard') }}#risk-panel" class="secondary-btn">Check Disaster Risk</a>
-      <a href="{{ url_for('dashboard') }}#alerts-panel" class="secondary-btn">View Live Alerts</a>
-    </div>
-    <div class="mini-stats">
-      <div><strong>2.4M</strong><span>People monitored</span></div>
-      <div><strong>92%</strong><span>Forecast accuracy</span></div>
-      <div><strong>15 sec</strong><span>Alert dispatch</span></div>
+      <a href="{{ url_for('weather') }}" class="primary-btn"><i class="fa-solid fa-cloud-sun-rain"></i> Check local outlook</a>
+      <a href="#capabilities" class="secondary-btn">Explore all capabilities</a>
     </div>
   </div>
-  <div class="hero-panel">
-    <div class="panel-card status-card">
-      <div class="card-header">
-        <span>Live disaster overview</span>
-        <span class="status-pill danger">High risk</span>
-      </div>
-      <div class="signal-row">
-        <div>
-          <strong>Flood</strong>
-          <small>72% probability</small>
-        </div>
-        <div class="signal-bar"><span style="width: 72%"></span></div>
-      </div>
-      <div class="signal-row">
-        <div>
-          <strong>Cyclone</strong>
-          <small>41% probability</small>
-        </div>
-        <div class="signal-bar warning"><span style="width: 41%"></span></div>
-      </div>
-      <div class="signal-row">
-        <div>
-          <strong>Landslide</strong>
-          <small>36% probability</small>
-        </div>
-        <div class="signal-bar ok"><span style="width: 36%"></span></div>
-      </div>
-    </div>
+  <div class="capability-hero-image" aria-hidden="true">
+    <img src="https://images.unsplash.com/photo-1547683905-f686c993aae5?auto=format&amp;fit=crop&amp;w=1200&amp;q=85" alt="" />
+    <span><i class="fa-solid fa-shield-heart"></i> Prepare · respond · recover</span>
   </div>
 </section>
 
-<section class="info-grid">
-  <div class="info-card feature-card">
-    <i class="fa-solid fa-brain"></i>
-    <h3>AI prediction engine</h3>
-    <p>Combines weather, terrain, and historical disaster patterns to highlight risk-prone zones.</p>
-  </div>
-  <div class="info-card feature-card">
-    <i class="fa-solid fa-map-location-dot"></i>
-    <h3>Geospatial monitoring</h3>
-    <p>Track vulnerable communities, infrastructure exposure, and hazard corridors across the region.</p>
-  </div>
-  <div class="info-card feature-card">
-    <i class="fa-solid fa-bell"></i>
-    <h3>Early warning system</h3>
-    <p>Rapid alert dispatch supported by multi-channel warnings for officials, responders, and the public.</p>
-  </div>
-</section>
-
-<section class="section-block">
+<section class="section-block capability-section" id="capabilities">
   <div class="title-row">
-    <span class="section-tag">Supported hazard categories</span>
-    <h3>Disaster intelligence across the full resilience cycle</h3>
+    <span class="section-tag">Disaster management framework</span>
+    <h3>Eight capabilities across the response lifecycle</h3>
+    <p class="module-description">Select a capability to explore its current workflow and integration status.</p>
   </div>
-  <div class="category-grid">
-    <div class="category-card">
-      <i class="fa-solid fa-water"></i>
-      <h4>Floods</h4>
-      <p>Stormwater and river surges with rainfall-driven risk forecasts.</p>
-    </div>
-    <div class="category-card">
-      <i class="fa-solid fa-wind"></i>
-      <h4>Cyclones</h4>
-      <p>Track wind, coastal exposure, and warning zones from tropical systems.</p>
-    </div>
-    <div class="category-card">
-      <i class="fa-solid fa-mountain-sun"></i>
-      <h4>Landslides</h4>
-      <p>Assess slope instability, precipitation triggers, and vulnerable terrain.</p>
-    </div>
-    <div class="category-card">
-      <i class="fa-solid fa-cloud-showers-heavy"></i>
-      <h4>Weather</h4>
-      <p>Monitor rainfall, humidity, pressure, and hazard conditions in near real time.</p>
-    </div>
+  <div class="capability-grid">
+    {% for capability in capabilities %}
+    <a class="capability-card" href="{{ capability.link }}">
+      <div class="capability-card-top">
+        <span class="capability-number">{{ capability.number }}</span>
+        <i class="fa-solid {{ capability.icon }}" aria-hidden="true"></i>
+      </div>
+      <h4>{{ capability.title }}</h4>
+      <p>{{ capability.description }}</p>
+      <span class="capability-status">{{ capability.status }}</span>
+      <span class="capability-link">Explore <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span>
+    </a>
+    {% endfor %}
   </div>
 </section>
 
-<section class="section-block two-column">
-  <div>
-    <span class="section-tag">How it works</span>
-    <h3>From signals to action</h3>
-    <ol class="steps">
-      <li><strong>1. Data collection</strong><span>Open weather feeds, official notices, and risk datasets are ingested continuously.</span></li>
-      <li><strong>2. AI analysis</strong><span>Machine learning models estimate event likelihood, severity, and hazard exposure.</span></li>
-      <li><strong>3. Decision support</strong><span>Authorities and responders receive practical recommendations and timely alerts.</span></li>
-    </ol>
-  </div>
-  <div class="panel-card stats-panel">
-    <div class="metric"><span>Monitoring stations</span><strong>112</strong></div>
-    <div class="metric"><span>Risk analyses today</span><strong>8,420</strong></div>
-    <div class="metric"><span>Regions covered</span><strong>24</strong></div>
-    <div class="metric"><span>Operational alerts</span><strong>18</strong></div>
-  </div>
-</section>
-
-<section class="section-block">
-  <div class="title-row">
-    <span class="section-tag">Preparedness</span>
-    <h3>Emergency planning resources</h3>
-  </div>
-  <div class="info-grid small-grid">
-    <div class="info-card">
-      <i class="fa-solid fa-house-chimney"></i>
-      <h4>Community readiness</h4>
-      <p>Prepare for evacuation, shelters, and resource allocation before a hazard escalates.</p>
-    </div>
-    <div class="info-card">
-      <i class="fa-solid fa-user-shield"></i>
-      <h4>Responder coordination</h4>
-      <p>Track response status and align logistics across districts and agencies.</p>
-    </div>
-    <div class="info-card">
-      <i class="fa-solid fa-kit-medical"></i>
-      <h4>Medical support</h4>
-      <p>Identify vulnerable groups and prioritize care for health-critical areas.</p>
-    </div>
-  </div>
-</section>
-
-<section class="section-block contact-section">
-  <div>
-    <span class="section-tag">Contact</span>
-    <h3>Need a tailored disaster resilience solution?</h3>
-    <p>Connect with our response center for implementation support, field deployment, and advisory updates.</p>
-  </div>
-  <a class="primary-btn" href="mailto:operations@disasterguard.ai">Contact Operations</a>
+<section class="capability-disclaimer">
+  <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+  <p>
+    <strong>Operational notice:</strong> Use official emergency, meteorological, and local-authority
+    instructions for safety decisions. Demonstration workflows are not connected to dispatch,
+    official public alerts, verified shelter routes, live inventory, or relief delivery.
+  </p>
 </section>
 
 <footer class="footer">
-  <p>© {{ current_year }} AI DisasterGuard. Built for resilient communities and safer decision-making.</p>
+  <p>© {{ current_year }} AI DisasterGuard · A decision-support demonstration for safer communities.</p>
 </footer>
 {% endblock %}
