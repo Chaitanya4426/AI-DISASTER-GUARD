@@ -760,7 +760,7 @@ async function loadLocationPrediction(latitude, longitude, locationName) {
       results.append(card);
     });
 
-    status.textContent = `Updated from ${prediction.source} · ${prediction.forecast_horizon}`;
+    status.textContent = `${prediction.cached ? 'Cached forecast' : 'Updated'} from ${prediction.source} · ${prediction.forecast_horizon}`;
     if (disclaimer) disclaimer.textContent = prediction.disclaimer;
     if (database) {
       const persistence = prediction.database?.status;

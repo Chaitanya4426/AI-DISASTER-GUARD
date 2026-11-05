@@ -1,6 +1,8 @@
 import json
 import math
 import os
+import time
+from threading import Lock
 from datetime import datetime, timedelta
 
 import requests
@@ -33,6 +35,8 @@ login_manager = LoginManager(app)
 login_manager.login_view = "login"
 mongo_client = None
 mongo_client_uri = None
+location_prediction_cache = {}
+location_prediction_cache_lock = Lock()
 
 
 class User(UserMixin, db.Model):
@@ -559,6 +563,15 @@ def location_prediction():
         return jsonify({"error": "Coordinates are outside the valid range."}), 400
 
     location = str(payload.get("location", "Selected location")).strip()[:120] or "Selected location"
+    cache_key = (round(latitude, 3), round(longitude, 3), location.casefold())
+    with location_prediction_cache_lock:
+        cached_prediction = location_prediction_cache.get(cache_key)
+        if cached_prediction and cached_prediction[0] > time.monotonic():
+            response = dict(cached_prediction[1])
+            response["cached"] = True
+            return jsonify(response)
+        location_prediction_cache.pop(cache_key, None)
+
     try:
         weather_response = requests.get(
             "https://api.open-meteo.com/v1/forecast",
@@ -593,6 +606,17 @@ def location_prediction():
             soil_moisture = soil_moisture * 100
 
         elevation, slope_degrees = fetch_elevation_slope(latitude, longitude)
+    except requests.HTTPError as error:
+        status_code = error.response.status_code if error.response is not None else None
+        if status_code == 429:
+            retry_after = error.response.headers.get("Retry-After")
+            retry_message = f" Please retry after {retry_after} seconds." if retry_after and retry_after.isdigit() else " Please retry in a few minutes."
+            app.logger.warning("Open-Meteo rate-limited a live location prediction.")
+            return jsonify({
+                "error": f"The live weather provider is temporarily rate-limiting requests.{retry_message}",
+            }), 503
+        app.logger.warning("Live location data provider returned HTTP %s.", status_code)
+        return jsonify({"error": "The live weather or terrain data provider is temporarily unavailable."}), 502
     except (requests.RequestException, ValueError, KeyError, TypeError) as error:
         app.logger.warning("Live location prediction unavailable: %s", error)
         return jsonify({
@@ -634,6 +658,7 @@ def location_prediction():
         "source": "Open-Meteo forecast and elevation data",
         "forecast_time": weather.get("current", {}).get("time"),
         "forecast_horizon": "Next 24 hours",
+        "cached": False,
         "risks": [
             {
                 "hazard": "Flood",
@@ -662,6 +687,18 @@ def location_prediction():
         "provider": "MongoDB Atlas",
         "status": save_location_prediction(prediction),
     }
+    with location_prediction_cache_lock:
+        now = time.monotonic()
+        expired_keys = [
+            key for key, (expires_at, _) in location_prediction_cache.items()
+            if expires_at <= now
+        ]
+        for key in expired_keys:
+            location_prediction_cache.pop(key, None)
+        if len(location_prediction_cache) >= 256:
+            oldest_key = min(location_prediction_cache, key=lambda key: location_prediction_cache[key][0])
+            location_prediction_cache.pop(oldest_key, None)
+        location_prediction_cache[cache_key] = (now + 600, prediction)
     return jsonify(prediction)
 
 
