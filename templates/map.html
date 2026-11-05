@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <span class="section-tag">GIS monitoring</span>
+    <h2>Interactive disaster risk map</h2>
+  </div>
+</section>
+
+<section class="map-layout" id="map-page">
+  <div class="panel-card map-panel">
+    <div id="risk-map" class="risk-map"></div>
+  </div>
+  <div class="panel-card map-legend">
+    <div class="panel-head">
+      <h3>Legend</h3>
+    </div>
+    <ul class="legend-list">
+      <li><span class="dot critical"></span> Critical risk</li>
+      <li><span class="dot high"></span> High risk</li>
+      <li><span class="dot moderate"></span> Moderate risk</li>
+      <li><span class="dot safe"></span> Low risk</li>
+    </ul>
+    <div class="map-note">
+      Map data is presented in demo mode when live geospatial layers are unavailable.
+    </div>
+  </div>
+</section>
+{% endblock %}

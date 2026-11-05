@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <span class="section-tag">Account</span>
+    <h2>Profile</h2>
+  </div>
+</section>
+
+<section class="profile-grid">
+  <div class="panel-card profile-panel">
+    <div class="profile-header">
+      <div class="profile-avatar">{{ current_user.username[:1].upper() }}</div>
+      <div>
+        <h3>{{ current_user.username }}</h3>
+        <p>{{ current_user.email }}</p>
+      </div>
+    </div>
+    <ul class="profile-meta">
+      <li><span>Role</span><strong>{{ current_user.role }}</strong></li>
+      <li><span>Member since</span><strong>{{ current_user.created_at.strftime('%d %b %Y') }}</strong></li>
+      <li><span>Last login</span><strong>{{ current_user.last_login.strftime('%d %b %Y %H:%M') }}</strong></li>
+    </ul>
+  </div>
+
+  <div class="panel-card">
+    <div class="panel-head">
+      <h3>Access summary</h3>
+    </div>
+    <div class="profile-summary">
+      <div class="pill-list">
+        <span class="status-pill success">Public access</span>
+        <span class="status-pill info">Analyst alerts</span>
+        <span class="status-pill warning">Risk review</span>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

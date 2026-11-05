@@ -1,0 +1,95 @@
+{
+  "generated_at": "2026-11-04T14:07:15.902Z",
+  "data_source": "Simulation and Open-Meteo demo feeds",
+  "demo_mode": true,
+  "status": "Operational",
+  "metrics": [
+    {
+      "label": "Active official alerts",
+      "tone": "danger",
+      "trend": "+3.2%",
+      "value": "18"
+    },
+    {
+      "label": "AI-estimated high-risk areas",
+      "tone": "warning",
+      "trend": "+1.4%",
+      "value": "6"
+    },
+    {
+      "label": "Current monitored locations",
+      "tone": "info",
+      "trend": "+8.6%",
+      "value": "112"
+    },
+    {
+      "label": "Weather station status",
+      "tone": "success",
+      "trend": "+2.1%",
+      "value": "94%"
+    },
+    {
+      "label": "Recent disaster incidents",
+      "tone": "neutral",
+      "trend": "-1.3%",
+      "value": "09"
+    },
+    {
+      "label": "Data source availability",
+      "tone": "success",
+      "trend": "+0.8%",
+      "value": "98%"
+    }
+  ],
+  "alerts": [
+    {
+      "severity": "High",
+      "time": "15 min ago",
+      "title": "Cyclone watch for coastal districts"
+    },
+    {
+      "severity": "Moderate",
+      "time": "42 min ago",
+      "title": "River level rising near Jamuna basin"
+    },
+    {
+      "severity": "Warning",
+      "time": "1 hr ago",
+      "title": "Heavy rainfall advisory in hill tracts"
+    }
+  ],
+  "high_risk_locations": [
+    {
+      "lat": 25.07,
+      "lng": 91.4,
+      "name": "Sunamganj",
+      "risk": "Critical"
+    },
+    {
+      "lat": 21.42,
+      "lng": 91.98,
+      "name": "Cox's Bazar",
+      "risk": "High"
+    },
+    {
+      "lat": 23.1,
+      "lng": 91.97,
+      "name": "Khagrachhari",
+      "risk": "Moderate"
+    }
+  ],
+  "recent_events": [
+    {
+      "event": "Flash flood alert",
+      "time": "08:20"
+    },
+    {
+      "event": "Heat hazard review",
+      "time": "07:40"
+    },
+    {
+      "event": "Coastal wind advisory",
+      "time": "06:10"
+    }
+  ]
+}

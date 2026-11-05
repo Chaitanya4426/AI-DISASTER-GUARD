@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <span class="section-tag">Real-time weather</span>
+    <h2>Weather monitoring and forecasting</h2>
+  </div>
+  <div class="status-pill success" id="weather-status">Checking source...</div>
+</section>
+
+<section class="weather-grid" id="weather-page">
+  <div class="panel-card weather-hero">
+    <div class="weather-header">
+      <div>
+        <span class="section-tag">Current conditions</span>
+        <h3 id="weather-location">Dhaka, Bangladesh</h3>
+      </div>
+      <span class="status-pill info" id="weather-source">Live data</span>
+    </div>
+    <div class="weather-main-display">
+      <div class="temp-block">
+        <strong id="temperature-value">--</strong>
+        <span id="weather-condition">--</span>
+      </div>
+      <div class="weather-metrics">
+        <div><label>Humidity</label><strong id="humidity-value">--</strong></div>
+        <div><label>Rainfall</label><strong id="rainfall-value">--</strong></div>
+        <div><label>Wind</label><strong id="wind-speed-value">--</strong></div>
+        <div><label>Pressure</label><strong id="pressure-value">--</strong></div>
+      </div>
+    </div>
+    <div class="meta-row">
+      <span>Last updated: <strong id="last-updated">--</strong></span>
+      <span>API status: <strong id="api-status">--</strong></span>
+    </div>
+  </div>
+
+  <div class="panel-card search-panel">
+    <div class="panel-head">
+      <h3>Weather location search</h3>
+    </div>
+    <div class="location-search">
+      <label for="place-input">Search by city or place</label>
+      <div class="place-search">
+        <input type="search" id="place-input" placeholder="e.g. Chattogram" autocomplete="off" />
+        <button type="button" class="secondary-btn" id="place-search">Find</button>
+      </div>
+      <label>
+        Latitude
+        <input type="number" id="lat-input" value="23.8103" step="0.0001" />
+      </label>
+      <label>
+        Longitude
+        <input type="number" id="lon-input" value="90.4125" step="0.0001" />
+      </label>
+      <button class="primary-btn" id="weather-refresh">Refresh data</button>
+    </div>
+  </div>
+</section>
+
+<section class="chart-grid weather-chart-grid">
+  <div class="panel-card">
+    <div class="panel-head">
+      <h3>Hourly forecast</h3>
+    </div>
+    <div class="forecast-list" id="hourly-forecast"></div>
+  </div>
+  <div class="panel-card">
+    <div class="panel-head">
+      <h3>Daily forecast</h3>
+    </div>
+    <div class="forecast-list" id="daily-forecast"></div>
+  </div>
+  <div class="panel-card">
+    <div class="panel-head">
+      <h3>Rainfall chart</h3>
+    </div>
+    <div class="chart-frame weather-chart-frame"><canvas id="weatherRainChart"></canvas></div>
+  </div>
+</section>
+{% endblock %}

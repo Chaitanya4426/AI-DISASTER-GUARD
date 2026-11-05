@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ page_title or 'AI DisasterGuard' }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="brand-box">
+          <div class="brand-mark"><i class="fa-solid fa-shield-heart"></i></div>
+          <div>
+            <h1>AI DisasterGuard</h1>
+          </div>
+        </div>
+
+        <nav class="nav-menu">
+          <a href="{{ url_for('dashboard') }}" class="nav-item {% if request.path == '/dashboard' %}active{% endif %}"><i class="fa-solid fa-gauge-high"></i> Dashboard</a>
+          <a href="{{ url_for('module_page', slug='ai-predictions') }}" class="nav-item {% if request.path.endswith('/ai-predictions') %}active{% endif %}"><i class="fa-solid fa-chart-line"></i> AI Predictions</a>
+          <a href="{{ url_for('module_page', slug='flood-prediction') }}" class="nav-item {% if request.path.endswith('/flood-prediction') %}active{% endif %}"><i class="fa-solid fa-water"></i> Flood Prediction</a>
+          <a href="{{ url_for('module_page', slug='cyclone-prediction') }}" class="nav-item {% if request.path.endswith('/cyclone-prediction') %}active{% endif %}"><i class="fa-solid fa-wind"></i> Cyclone Prediction</a>
+          <a href="{{ url_for('module_page', slug='landslide-prediction') }}" class="nav-item {% if request.path.endswith('/landslide-prediction') %}active{% endif %}"><i class="fa-solid fa-mountain-sun"></i> Landslide Prediction</a>
+          <a href="{{ url_for('module_page', slug='weather-prediction') }}" class="nav-item {% if request.path.endswith('/weather-prediction') %}active{% endif %}"><i class="fa-solid fa-cloud-sun-rain"></i> Weather Prediction</a>
+          <a href="{{ url_for('map_page') }}" class="nav-item {% if request.path == '/map' or request.path.endswith('/disaster-risk-map') %}active{% endif %}"><i class="fa-solid fa-map-location-dot"></i> Disaster Risk Map</a>
+          <a href="{{ url_for('module_page', slug='early-warning-center') }}" class="nav-item {% if request.path.endswith('/early-warning-center') %}active{% endif %}"><i class="fa-solid fa-bell"></i> Early Warning Center</a>
+          <a href="{{ url_for('module_page', slug='emergency-response') }}" class="nav-item {% if request.path.endswith('/emergency-response') %}active{% endif %}"><i class="fa-solid fa-truck-medical"></i> Emergency Response</a>
+          <a href="{{ url_for('module_page', slug='evacuation-planning') }}" class="nav-item {% if request.path.endswith('/evacuation-planning') %}active{% endif %}"><i class="fa-solid fa-route"></i> Evacuation Planning</a>
+          <a href="{{ url_for('module_page', slug='analytics-reports') }}" class="nav-item {% if request.path.endswith('/analytics-reports') %}active{% endif %}"><i class="fa-solid fa-chart-column"></i> Analytics & Reports</a>
+          <a href="{{ url_for('dashboard') }}" class="nav-item"><i class="fa-solid fa-gear"></i> Settings</a>
+        </nav>
+      </aside>
+
+      <div class="main-panel">
+        <header class="topbar">
+          <div class="topbar-left">
+            <button class="menu-toggle" aria-label="Toggle menu"><i class="fa-solid fa-bars"></i></button>
+            <div class="search-box">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input type="search" id="global-search" placeholder="Search pages, alerts, locations..." aria-label="Search this application" autocomplete="off" />
+              <div class="search-results" id="search-results" role="listbox" aria-label="Search results" hidden></div>
+            </div>
+          </div>
+
+          <div class="topbar-right">
+            <div class="notification-wrap">
+              <button type="button" class="ghost-button" id="notification-toggle" aria-label="Open notifications" aria-expanded="false">
+                <i class="fa-solid fa-bell"></i><span class="badge" id="notification-count">0</span>
+              </button>
+              <div class="notification-menu" id="notification-menu" hidden>
+                <div class="notification-menu-head">
+                  <strong>Notifications</strong>
+                  <a href="{{ url_for('module_page', slug='early-warning-center') }}">View all</a>
+                </div>
+                <div id="notification-items"></div>
+              </div>
+            </div>
+            <button type="button" class="location-pill" id="current-location" title="Use your current location">
+              <i class="fa-solid fa-location-dot"></i>
+              <span id="current-location-label" aria-live="polite">Dhaka, Bangladesh</span>
+            </button>
+            <button class="theme-toggle" aria-label="Toggle mode" data-theme-toggle>
+              <i class="fa-solid fa-moon"></i>
+            </button>
+            {% if current_user.is_authenticated %}
+              <a class="user-chip" href="{{ url_for('profile') }}">
+                <span class="avatar">{{ current_user.username[:1].upper() }}</span>
+                <span>{{ current_user.username }}</span>
+              </a>
+              <a class="action-link" href="{{ url_for('logout') }}">Logout</a>
+            {% else %}
+              <a class="action-link" href="{{ url_for('login') }}">Login</a>
+              <a class="action-link action-primary" href="{{ url_for('register') }}">Register</a>
+            {% endif %}
+          </div>
+        </header>
+
+        <main class="page-content">
+          {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+              <div class="flash-stack">
+                {% for category, message in messages %}
+                  <div class="flash flash-{{ category }}">{{ message }}</div>
+                {% endfor %}
+              </div>
+            {% endif %}
+          {% endwith %}
+          {% block content %}{% endblock %}
+        </main>
+      </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  </body>
+</html>

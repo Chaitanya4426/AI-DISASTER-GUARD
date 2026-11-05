@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <span class="section-tag">Operations dashboard</span>
+    <h2>Multi-hazard intelligence overview</h2>
+  </div>
+  <div class="page-header-actions">
+    <span class="status-pill warning">Demo metrics</span>
+    <button class="primary-btn small-btn" type="button" id="export-report"><i class="fa-solid fa-download"></i> Export report</button>
+    <span class="export-status" id="export-status" aria-live="polite"></span>
+  </div>
+</div>
+
+<section class="stats-grid" id="dashboard-page">
+  <a class="stat-card danger" href="{{ url_for('module_page', slug='early-warning-center') }}" aria-label="View active official alerts">
+    <div class="stat-label">Active demo alerts</div>
+    <div class="stat-value" id="stat-alerts">--</div>
+    <div class="stat-trend">Records in the sample alert feed</div>
+  </a>
+  <a class="stat-card warning" href="{{ url_for('module_page', slug='disaster-risk-map') }}" aria-label="View high-risk areas">
+    <div class="stat-label">High-risk demo areas</div>
+    <div class="stat-value" id="stat-risk-areas">--</div>
+    <div class="stat-trend">High and critical mapped locations</div>
+  </a>
+  <a class="stat-card info" href="{{ url_for('module_page', slug='evacuation-planning') }}" aria-label="View monitored locations">
+    <div class="stat-label">Mapped demo locations</div>
+    <div class="stat-value" id="stat-monitored">--</div>
+    <div class="stat-trend">Locations shown on the risk map</div>
+  </a>
+  <a class="stat-card success" href="{{ url_for('module_page', slug='weather-prediction') }}" aria-label="View weather station status">
+    <div class="stat-label">Weather feed status</div>
+    <div class="stat-value" id="stat-weather-stations">--</div>
+    <div class="stat-trend">Open-Meteo connection status</div>
+  </a>
+  <a class="stat-card neutral" href="{{ url_for('module_page', slug='emergency-response') }}" aria-label="View recent disaster incidents">
+    <div class="stat-label">Recent demo events</div>
+    <div class="stat-value" id="stat-incidents">--</div>
+    <div class="stat-trend">Events in the sample dashboard feed</div>
+  </a>
+  <a class="stat-card success" href="{{ url_for('module_page', slug='analytics-reports') }}" aria-label="View data source availability">
+    <div class="stat-label">Weather data source</div>
+    <div class="stat-value" id="stat-data-availability">--</div>
+    <div class="stat-trend">Source used for current forecast charts</div>
+  </a>
+</section>
+
+<section class="chart-grid">
+  <div class="panel-card">
+    <div class="panel-head">
+      <h3>Rainfall forecast</h3>
+      <span class="status-pill info" id="rainfall-chart-source">Loading</span>
+    </div>
+    <div class="chart-frame"><canvas id="rainfallChart"></canvas></div>
+  </div>
+  <div class="panel-card">
+    <div class="panel-head">
+      <h3>Temperature forecast</h3>
+      <span class="status-pill info" id="temperature-chart-source">Loading</span>
+    </div>
+    <div class="chart-frame"><canvas id="temperatureChart"></canvas></div>
+  </div>
+  <div class="panel-card">
+    <div class="panel-head">
+      <h3>Alert count by hazard</h3>
+      <span class="status-pill warning">Demo feed</span>
+    </div>
+    <div class="chart-frame"><canvas id="frequencyChart"></canvas></div>
+  </div>
+  <div class="panel-card">
+    <div class="panel-head">
+      <h3>Demo risk score by location</h3>
+      <span class="status-pill warning">Demo locations</span>
+    </div>
+    <div class="chart-frame"><canvas id="hazardChart"></canvas></div>
+  </div>
+  <div class="panel-card">
+    <div class="panel-head">
+      <h3>Mapped locations by risk level</h3>
+      <span class="status-pill warning">Demo locations</span>
+    </div>
+    <div class="chart-frame"><canvas id="riskChart"></canvas></div>
+  </div>
+  <div class="panel-card">
+    <div class="panel-head">
+      <h3>Illustrative model scores</h3>
+      <span class="status-pill warning">Demo only</span>
+    </div>
+    <div class="chart-frame"><canvas id="historyChart"></canvas></div>
+  </div>
+</section>
+
+<section class="content-grid">
+  <div class="panel-card wide">
+    <div class="panel-head">
+      <h3>Current weather</h3>
+      <span class="status-pill info" id="dashboard-weather-status">Loading</span>
+    </div>
+    <p class="dashboard-weather-location"><i class="fa-solid fa-location-dot"></i> <span id="dashboard-weather-location">Dhaka, Bangladesh</span></p>
+    <div class="weather-summary">
+      <div class="weather-main">
+        <strong id="dashboard-temperature">--</strong>
+        <span id="dashboard-condition">Loading local forecast…</span>
+      </div>
+      <ul>
+        <li>Humidity: <span id="dashboard-humidity">--</span></li>
+        <li>Rainfall: <span id="dashboard-rainfall">--</span></li>
+        <li>Wind: <span id="dashboard-wind">--</span></li>
+        <li>Pressure: <span id="dashboard-pressure">--</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="panel-card" id="alerts-panel">
+    <div class="panel-head">
+      <h3>Recent alerts</h3>
+      <span class="status-pill danger">Live feed</span>
+    </div>
+    <div class="alert-list" id="alert-list"></div>
+  </div>
+</section>
+
+<section class="content-grid">
+  <div class="panel-card wide" id="risk-panel">
+    <div class="panel-head">
+      <h3>Flood prediction model</h3>
+      <span class="status-pill warning">Demo mode</span>
+    </div>
+    <form id="flood-form" class="prediction-form">
+      <div class="field-grid">
+        <label>Rainfall intensity<input type="number" name="rainfall_intensity" value="58" /></label>
+        <label>Rainfall accumulation<input type="number" name="rainfall_accumulation" value="126" /></label>
+        <label>River water level<input type="number" name="river_water_level" value="64" /></label>
+        <label>Soil moisture<input type="number" name="soil_moisture" value="74" /></label>
+        <label>Elevation<input type="number" name="elevation" value="19" /></label>
+        <label>Slope<input type="number" name="slope" value="23" /></label>
+        <label>Historical flood events<input type="number" name="historical_flood_events" value="3" /></label>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="primary-btn">Run prediction</button>
+      </div>
+    </form>
+    <div class="prediction-result" id="prediction-result">
+      <div class="result-row"><span>Probability</span><strong id="risk-probability">--</strong></div>
+      <div class="result-row"><span>Risk category</span><strong id="risk-category">--</strong></div>
+      <div class="result-row"><span>Explanation</span><p id="risk-explanation">Awaiting prediction...</p></div>
+      <div class="result-row"><span>Contributing factors</span><p id="risk-factors">--</p></div>
+    </div>
+  </div>
+
+  <div class="panel-card">
+    <div class="panel-head">
+      <h3>High-risk locations</h3>
+      <span class="status-pill danger">Critical</span>
+    </div>
+    <div class="location-list" id="location-list"></div>
+  </div>
+</section>
+
+<section class="content-grid">
+  <div class="panel-card wide">
+    <div class="panel-head">
+      <h3>Latest disaster events</h3>
+      <span class="status-pill neutral">Recent</span>
+    </div>
+    <div class="events-table" id="events-table"></div>
+  </div>
+  <div class="panel-card">
+    <div class="panel-head">
+      <h3>System health</h3>
+      <span class="status-pill success">Healthy</span>
+    </div>
+    <div class="health-stack" id="health-stack"></div>
+  </div>
+</section>
+
+<section class="content-grid map-row">
+  <div class="panel-card wide">
+    <div class="panel-head">
+      <h3>Interactive disaster map</h3>
+      <span class="status-pill info">GIS</span>
+    </div>
+    <div id="dashboard-map" class="mini-map"></div>
+  </div>
+  <div class="panel-card">
+    <div class="panel-head">
+      <h3>Recent activity</h3>
+      <span class="status-pill neutral">Audit log</span>
+    </div>
+    <div class="activity-list" id="activity-list"></div>
+  </div>
+</section>
+{% endblock %}

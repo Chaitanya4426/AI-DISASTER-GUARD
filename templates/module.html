@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <span class="section-tag">{{ module.eyebrow }}</span>
+    <h2>{{ module.title }}</h2>
+    <p class="module-description">{{ module.description }}</p>
+  </div>
+  {% if module.link %}
+    <a class="primary-btn small-btn" href="{{ module.link }}">{{ module.mode }} <i class="fa-solid fa-arrow-right"></i></a>
+  {% else %}
+    <span class="status-pill warning">{{ module.mode }}</span>
+  {% endif %}
+</section>
+
+<section class="module-metrics">
+  {% for label, value in module.metrics %}
+  <article class="module-metric panel-card">
+    <span>{{ label }}</span>
+    <strong>{{ value }}</strong>
+  </article>
+  {% endfor %}
+</section>
+
+{% if module.title == "AI Predictions" %}
+<section class="module-shortcuts">
+  <a class="module-shortcut" href="{{ url_for('module_page', slug='flood-prediction') }}"><i class="fa-solid fa-water"></i><strong>Flood prediction</strong><span>Review rainfall and river indicators</span></a>
+  <a class="module-shortcut" href="{{ url_for('module_page', slug='cyclone-prediction') }}"><i class="fa-solid fa-wind"></i><strong>Cyclone prediction</strong><span>Review wind and coastal exposure</span></a>
+  <a class="module-shortcut" href="{{ url_for('module_page', slug='landslide-prediction') }}"><i class="fa-solid fa-mountain-sun"></i><strong>Landslide prediction</strong><span>Review rainfall and terrain inputs</span></a>
+  <a class="module-shortcut" href="{{ url_for('module_page', slug='weather-prediction') }}"><i class="fa-solid fa-cloud-sun-rain"></i><strong>Weather prediction</strong><span>Open live weather monitoring</span></a>
+</section>
+{% endif %}
+
+{% if module.prediction %}
+<section class="module-body-grid">
+  <div class="panel-card">
+    <div class="panel-head">
+      <h3>Assessment inputs</h3>
+      <span class="status-pill warning">Demo mode</span>
+    </div>
+    <form class="prediction-form module-prediction-form" data-hazard="{{ module.prediction }}">
+      <div class="field-grid">
+        {% for name, label, value in module.fields %}
+        <label>{{ label }}<input type="number" step="any" name="{{ name }}" value="{{ value }}" required /></label>
+        {% endfor %}
+      </div>
+      <div class="form-actions"><button type="submit" class="primary-btn">Run demo assessment</button></div>
+    </form>
+  </div>
+  <div class="panel-card prediction-output" id="module-prediction-result" aria-live="polite">
+    <div class="panel-head">
+      <h3>Assessment result</h3>
+      <span class="status-pill neutral">Awaiting input</span>
+    </div>
+    <div class="module-result-value" id="module-risk-probability">--</div>
+    <div class="result-row"><span>Risk category</span><strong id="module-risk-category">--</strong></div>
+    <p id="module-risk-explanation">Submit the form to calculate an illustrative demo estimate. This is not a trained-model prediction.</p>
+    <p class="result-factors"><strong>Contributing factors:</strong> <span id="module-risk-factors">--</span></p>
+  </div>
+</section>
+{% endif %}
+
+{% if module.title == "Disaster Risk Map" %}
+<section class="panel-card module-map-card">
+  <div class="panel-head"><h3>Hazard locations</h3><span class="status-pill info">Illustrative layer</span></div>
+  <div id="risk-map" class="risk-map"></div>
+</section>
+{% endif %}
+
+{% if module.title == "Analytics & Reports" %}
+<section class="panel-card module-chart-card">
+  <div class="panel-head"><h3>Illustrative hazard distribution</h3><span class="status-pill neutral">Demo data</span></div>
+  <div class="chart-frame"><canvas id="module-analytics-chart"></canvas></div>
+</section>
+{% endif %}
+
+<section class="panel-card module-items">
+  <div class="panel-head">
+    <h3>{% if module.title == "Early Warning Center" %}Current alerts{% elif module.title == "Emergency Response" %}Response activity{% elif module.title == "Evacuation Planning" %}Priority locations{% else %}Latest assessments{% endif %}</h3>
+    <span class="status-pill neutral">Development data</span>
+  </div>
+  <div class="module-item-list">
+    {% for title, status, location, detail in module["items"] %}
+    <article class="module-item">
+      <div class="module-item-main">
+        <h4>{{ title }}</h4>
+        <p>{{ detail }}</p>
+      </div>
+      <span class="severity-chip {% if status in ['High', 'Critical', 'Warning'] %}high{% else %}normal{% endif %}">{{ status }}</span>
+      <span class="module-item-location"><i class="fa-solid fa-location-dot"></i> {{ location }}</span>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

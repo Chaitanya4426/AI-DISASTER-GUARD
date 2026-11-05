@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <span class="section-tag">Protected administration</span>
+    <h2>Administrator console</h2>
+  </div>
+</section>
+
+<section class="profile-grid">
+  <div class="panel-card profile-panel">
+    <div class="profile-header">
+      <div class="profile-avatar">{{ current_user.username[:1].upper() }}</div>
+      <div>
+        <h3>{{ current_user.username }}</h3>
+        <small>Administrator role</small>
+      </div>
+    </div>
+    <ul class="profile-meta">
+      <li><span>System status</span><strong>Operational</strong></li>
+      <li><span>Risk models</span><strong>6 active</strong></li>
+      <li><span>Alert channels</span><strong>12 connected</strong></li>
+    </ul>
+  </div>
+
+  <div class="panel-card">
+    <div class="panel-head">
+      <h3>Security controls</h3>
+      <span class="status-pill success">Protected</span>
+    </div>
+    <div class="health-stack">
+      <div><span>Session security</span><strong>Encrypted</strong></div>
+      <div><span>Role enforcement</span><strong>Active</strong></div>
+      <div><span>Admin endpoint guard</span><strong>Enabled</strong></div>
+      <div><span>Audit logging</span><strong>Enabled</strong></div>
+    </div>
+  </div>
+</section>
+{% endblock %}
