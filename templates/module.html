@@ -75,6 +75,7 @@
 </section>
 {% endif %}
 
+{% if module["items"] %}
 <section class="panel-card module-items">
   <div class="panel-head">
     <h3>{% if module.title == "Early Warning Center" %}Current alerts{% elif module.title == "Emergency Response" %}Response activity{% elif module.title == "Evacuation Planning" %}Priority locations{% else %}Latest assessments{% endif %}</h3>
@@ -93,4 +94,5 @@
     {% endfor %}
   </div>
 </section>
+{% endif %}
 {% endblock %}

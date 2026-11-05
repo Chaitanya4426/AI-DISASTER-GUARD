@@ -3,7 +3,8 @@ import math
 import os
 import time
 from threading import Lock
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from urllib.parse import urlparse
 
 import requests
 from flask import Flask, flash, jsonify, redirect, render_template, request, url_for
@@ -38,6 +39,7 @@ mongo_client_uri = None
 location_prediction_cache = {}
 location_prediction_cache_lock = Lock()
 location_provider_cooldown_until = 0
+location_hazard_cache = {}
 
 
 class User(UserMixin, db.Model):
@@ -152,8 +154,8 @@ def index():
             "number": "01",
             "icon": "fa-cloud-bolt",
             "title": "Disaster prediction",
-            "description": "View local weather forecasts and heuristic flood and landslide risk indices. These are not calibrated probabilities or official warnings.",
-            "status": "Live weather · heuristic risk",
+            "description": "View location-based heuristic flood and landslide indices, active cyclone reports, and recent earthquake observations. Earthquakes cannot be predicted.",
+            "status": "Weather + GDACS + USGS",
             "link": url_for("weather"),
         },
         {
@@ -246,13 +248,12 @@ def module_page(slug):
         },
         "cyclone-prediction": {
             "title": "Cyclone Prediction",
-            "eyebrow": "Coastal hazard outlook",
-            "description": "Review a clearly labeled sample impact assessment. Check official meteorological advisories before making response decisions.",
-            "metrics": [("Track status", "Demo scenario"), ("Coastal exposure", "Elevated"), ("Official feed", "Not connected")],
-            "items": [("Wind exposure", "High", "Cox's Bazar", "Demo scenario: strong coastal winds"), ("Coastal surge", "Moderate", "Chattogram coast", "Demo scenario: monitor official bulletins"), ("Track confidence", "Unavailable", "Bay of Bengal", "No live cyclone track is connected")],
-            "mode": "Demo assessment",
-            "prediction": "cyclone",
-            "fields": [("wind_speed", "Wind speed (km/h)", "85"), ("pressure", "Atmospheric pressure (hPa)", "990"), ("rainfall", "Rainfall (mm)", "80"), ("coast_distance", "Distance from coast (km)", "35")],
+            "eyebrow": "Location-based cyclone reports",
+            "description": "Choose a location on the weather page to view active GDACS cyclone event reports near it. Distances are measured from reported event centers; this is not a cyclone-track forecast or an impact probability. Follow your local meteorological authority.",
+            "metrics": [("Event source", "GDACS active reports"), ("Location", "Selected place"), ("Cyclone probability", "Not estimated")],
+            "items": [],
+            "mode": "Check nearby cyclone reports",
+            "link": url_for("weather"),
         },
         "landslide-prediction": {
             "title": "Landslide Prediction",
@@ -644,6 +645,26 @@ def save_location_prediction(prediction):
         return "unavailable"
 
 
+def distance_between_coordinates(latitude_a, longitude_a, latitude_b, longitude_b):
+    latitude_delta = math.radians(latitude_b - latitude_a)
+    longitude_delta = math.radians(longitude_b - longitude_a)
+    haversine = (
+        math.sin(latitude_delta / 2) ** 2
+        + math.cos(math.radians(latitude_a))
+        * math.cos(math.radians(latitude_b))
+        * math.sin(longitude_delta / 2) ** 2
+    )
+    haversine = min(1.0, max(0.0, haversine))
+    return 6371 * 2 * math.atan2(math.sqrt(haversine), math.sqrt(1 - haversine))
+
+
+def trusted_event_url(value, domain):
+    parsed = urlparse(value or "")
+    if parsed.scheme == "https" and parsed.hostname == domain:
+        return value
+    return None
+
+
 @app.route("/api/predict/location", methods=["POST"])
 def location_prediction():
     global location_provider_cooldown_until
@@ -814,6 +835,167 @@ def location_prediction():
             location_prediction_cache.pop(oldest_key, None)
         location_prediction_cache[cache_key] = (now + 600, prediction)
     return jsonify(prediction)
+
+
+@app.route("/api/hazards/location", methods=["POST"])
+def location_hazards():
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({"error": "Provide a JSON object with location coordinates."}), 400
+
+    try:
+        latitude = float(payload.get("latitude"))
+        longitude = float(payload.get("longitude"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Enter valid latitude and longitude coordinates."}), 400
+
+    if (
+        not math.isfinite(latitude)
+        or not math.isfinite(longitude)
+        or not -90 <= latitude <= 90
+        or not -180 <= longitude <= 180
+    ):
+        return jsonify({"error": "Coordinates are outside the valid range."}), 400
+
+    cache_key = (round(latitude, 2), round(longitude, 2))
+    with location_prediction_cache_lock:
+        cached_hazards = location_hazard_cache.get(cache_key)
+        if cached_hazards and cached_hazards[0] > time.monotonic():
+            response = dict(cached_hazards[1])
+            response["cached"] = True
+            return jsonify(response)
+        location_hazard_cache.pop(cache_key, None)
+
+    hazards = {
+        "cached": False,
+        "earthquake_source": "USGS",
+        "earthquake_status": "live",
+        "earthquake_radius_km": 300,
+        "earthquake_days": 7,
+        "earthquakes": [],
+        "cyclone_source": "GDACS",
+        "cyclone_status": "live",
+        "cyclone_radius_km": 750,
+        "cyclones": [],
+    }
+
+    now = datetime.now(timezone.utc)
+    start_time = (now - timedelta(days=7)).isoformat(timespec="seconds")
+    try:
+        earthquake_response = requests.get(
+            "https://earthquake.usgs.gov/fdsnws/event/1/query.geojson",
+            params={
+                "format": "geojson",
+                "latitude": latitude,
+                "longitude": longitude,
+                "maxradiuskm": hazards["earthquake_radius_km"],
+                "starttime": start_time,
+                "endtime": now.isoformat(timespec="seconds"),
+                "limit": 20,
+                "orderby": "time",
+            },
+            timeout=12,
+        )
+        earthquake_response.raise_for_status()
+        earthquake_features = earthquake_response.json().get("features", [])
+        for feature in earthquake_features[:5]:
+            properties = feature.get("properties") or {}
+            coordinates = (feature.get("geometry") or {}).get("coordinates") or []
+            if len(coordinates) < 3:
+                continue
+            event_longitude, event_latitude, depth_km = coordinates[:3]
+            magnitude = properties.get("mag")
+            if any(
+                not isinstance(value, (int, float)) or not math.isfinite(value)
+                for value in (event_latitude, event_longitude, depth_km)
+            ):
+                continue
+            hazards["earthquakes"].append({
+                "magnitude": magnitude,
+                "place": str(properties.get("place") or "Location not reported")[:180],
+                "time": properties.get("time"),
+                "depth_km": depth_km,
+                "distance_km": round(distance_between_coordinates(
+                    latitude, longitude, event_latitude, event_longitude
+                ), 1),
+                "url": trusted_event_url(properties.get("url"), "earthquake.usgs.gov"),
+            })
+    except (requests.RequestException, ValueError, TypeError, KeyError) as error:
+        app.logger.warning("Nearby USGS earthquake data unavailable: %s", error)
+        hazards["earthquake_status"] = "unavailable"
+
+    try:
+        cyclone_response = requests.get(
+            "https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH",
+            params={"eventtype": "TC"},
+            timeout=15,
+        )
+        cyclone_response.raise_for_status()
+        cyclone_features = cyclone_response.json().get("features", [])
+        for feature in cyclone_features:
+            properties = feature.get("properties") or {}
+            geometry = feature.get("geometry") or {}
+            coordinates = geometry.get("coordinates") or []
+            if properties.get("eventtype") != "TC" or geometry.get("type") != "Point" or len(coordinates) < 2:
+                continue
+            is_current = str(properties.get("iscurrent", "")).casefold() == "true"
+            end_time_value = properties.get("todate")
+            if not is_current or not end_time_value:
+                continue
+            try:
+                event_end = datetime.fromisoformat(end_time_value.replace("Z", "+00:00"))
+                if event_end.tzinfo is None:
+                    event_end = event_end.replace(tzinfo=timezone.utc)
+            except ValueError:
+                continue
+            if event_end < now:
+                continue
+            event_longitude, event_latitude = coordinates[:2]
+            if (
+                not isinstance(event_latitude, (int, float))
+                or not isinstance(event_longitude, (int, float))
+                or not math.isfinite(event_latitude)
+                or not math.isfinite(event_longitude)
+                or not -90 <= event_latitude <= 90
+                or not -180 <= event_longitude <= 180
+            ):
+                continue
+            distance_km = distance_between_coordinates(
+                latitude, longitude, event_latitude, event_longitude
+            )
+            if distance_km > hazards["cyclone_radius_km"]:
+                continue
+            hazards["cyclones"].append({
+                "name": str(properties.get("name") or "Tropical cyclone")[:120],
+                "alert_level": str(properties.get("alertlevel") or "Unspecified")[:30],
+                "distance_km": round(distance_km, 1),
+                "affected_countries": ", ".join(
+                    str(country.get("countryname", ""))
+                    for country in (properties.get("affectedcountries") or [])
+                    if isinstance(country, dict) and country.get("countryname")
+                )[:240],
+                "ends_at": end_time_value,
+                "url": trusted_event_url(properties.get("url"), "www.gdacs.org"),
+            })
+        hazards["cyclones"].sort(key=lambda event: event["distance_km"])
+        hazards["cyclones"] = hazards["cyclones"][:5]
+    except (requests.RequestException, ValueError, TypeError, KeyError) as error:
+        app.logger.warning("Nearby GDACS cyclone data unavailable: %s", error)
+        hazards["cyclone_status"] = "unavailable"
+
+    with location_prediction_cache_lock:
+        now = time.monotonic()
+        expired_keys = [
+            key for key, (expires_at, _) in location_hazard_cache.items()
+            if expires_at <= now
+        ]
+        for key in expired_keys:
+            location_hazard_cache.pop(key, None)
+        if len(location_hazard_cache) >= 256:
+            oldest_key = min(location_hazard_cache, key=lambda key: location_hazard_cache[key][0])
+            location_hazard_cache.pop(oldest_key, None)
+        location_hazard_cache[cache_key] = (now + 600, hazards)
+    return jsonify(hazards)
 
 
 @app.route("/api/predict/flood", methods=["POST"])

@@ -27,9 +27,21 @@ database changes can be lost when the service restarts or redeploys. Use a
 persistent database before relying on stored accounts.
 
 On the Weather page, search for a place or enter coordinates to see flood and
-landslide risk indices. Cyclone likelihood is not estimated because this feed
-does not provide an authoritative cyclone track. Location-prediction history
-can optionally be saved to MongoDB Atlas:
+landslide risk indices. The weather forecast uses Open-Meteo and nearby elevation
+data. Nearby tropical cyclone event reports come from GDACS and are displayed
+only while reported active and within 750 km of the reported event center; this
+is not a forecast track or location-impact probability. Recent earthquakes
+within 300 km are queried from the USGS feed for the previous seven days.
+Earthquakes cannot be predicted; recent events are observations, not a forecast.
+Provider outages and stale reports are possible, so always follow official
+local meteorological, emergency, and geological authorities.
+
+Flood and landslide percentages are heuristic risk indices, not calibrated
+probabilities, trained AI predictions, or official warnings. The flood response
+guide is preparedness information only. The app does not send SMS, issue public
+warnings, dispatch responders, manage a live supply inventory, or restore
+infrastructure. Flood and landslide risk indices can optionally be saved to
+MongoDB Atlas; nearby USGS and GDACS event observations are not stored:
 
 1. Create a MongoDB Atlas cluster and a database user.
 2. Allow the Render service to connect in the cluster's Network Access settings.

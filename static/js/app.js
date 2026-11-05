@@ -598,6 +598,7 @@ function initWeather() {
     }
     const sequence = ++refreshSequence;
     void loadLocationPrediction(lat, lon, selectedLocationName);
+    void loadLocationHazards(lat, lon);
 
     try {
       document.getElementById('weather-status').textContent = 'Loading weather...';
@@ -781,6 +782,7 @@ function initWeather() {
 }
 
 let activeLocationPrediction = 0;
+let activeLocationHazardRequest = 0;
 
 async function loadLocationPrediction(latitude, longitude, locationName) {
   const status = document.getElementById('location-risk-status');
@@ -832,6 +834,112 @@ async function loadLocationPrediction(latitude, longitude, locationName) {
     console.error('Location risk update failed:', error);
     status.textContent = error.message || 'Live location risk data is unavailable.';
   }
+}
+
+async function loadLocationHazards(latitude, longitude) {
+  const status = document.getElementById('location-observation-status');
+  const cycloneList = document.getElementById('nearby-cyclones');
+  const earthquakeList = document.getElementById('nearby-earthquakes');
+  if (!status || !cycloneList || !earthquakeList) return;
+
+  const requestId = ++activeLocationHazardRequest;
+  status.textContent = 'Checking nearby cyclone and earthquake feeds…';
+  cycloneList.replaceChildren();
+  earthquakeList.replaceChildren();
+
+  try {
+    const response = await fetch('/api/hazards/location', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        latitude: Number(latitude),
+        longitude: Number(longitude),
+      }),
+    });
+    const hazards = await response.json();
+    if (!response.ok) throw new Error(hazards.error || `Nearby hazard request failed (${response.status})`);
+    if (requestId !== activeLocationHazardRequest) return;
+
+    if (hazards.cyclone_status === 'live') {
+      if (!hazards.cyclones.length) {
+        appendHazardEmptyState(
+          cycloneList,
+          `No active GDACS cyclone event center was found within ${hazards.cyclone_radius_km} km. This does not guarantee safety.`
+        );
+      } else {
+        hazards.cyclones.forEach((cyclone) => {
+          const entry = document.createElement('article');
+          entry.className = 'observed-hazard-entry';
+          const title = document.createElement('strong');
+          title.textContent = cyclone.name;
+          const details = document.createElement('p');
+          details.textContent = `${cyclone.alert_level} alert · ${cyclone.distance_km} km from the reported event center${cyclone.affected_countries ? ` · ${cyclone.affected_countries}` : ''}`;
+          entry.append(title, details);
+          appendTrustedEventLink(entry, cyclone.url, 'View GDACS report');
+          cycloneList.append(entry);
+        });
+      }
+    } else {
+      appendHazardEmptyState(cycloneList, 'GDACS cyclone reports are temporarily unavailable.');
+    }
+
+    if (hazards.earthquake_status === 'live') {
+      if (!hazards.earthquakes.length) {
+        appendHazardEmptyState(
+          earthquakeList,
+          `No USGS earthquakes were reported within ${hazards.earthquake_radius_km} km in the last ${hazards.earthquake_days} days. Earthquakes cannot be predicted.`
+        );
+      } else {
+        hazards.earthquakes.forEach((earthquake) => {
+          const entry = document.createElement('article');
+          entry.className = 'observed-hazard-entry';
+          const title = document.createElement('strong');
+          title.textContent = Number.isFinite(earthquake.magnitude)
+            ? `Magnitude ${earthquake.magnitude.toFixed(1)}`
+            : 'Magnitude not reported';
+          const details = document.createElement('p');
+          const occurred = Number.isFinite(earthquake.time)
+            ? new Date(earthquake.time).toLocaleString()
+            : 'Time not reported';
+          details.textContent = `${earthquake.place} · ${earthquake.distance_km} km away · ${earthquake.depth_km} km deep · ${occurred}`;
+          entry.append(title, details);
+          appendTrustedEventLink(entry, earthquake.url, 'View USGS event');
+          earthquakeList.append(entry);
+        });
+      }
+    } else {
+      appendHazardEmptyState(earthquakeList, 'USGS earthquake reports are temporarily unavailable.');
+    }
+
+    const sourceStatus = [
+      `GDACS ${hazards.cyclone_status}`,
+      `USGS ${hazards.earthquake_status}`,
+    ].join(' · ');
+    status.textContent = `${hazards.cached ? 'Recent cached check' : 'Nearby event check complete'} · ${sourceStatus}`;
+  } catch (error) {
+    if (requestId !== activeLocationHazardRequest) return;
+    console.error('Nearby hazard feeds unavailable:', error);
+    appendHazardEmptyState(cycloneList, 'Cyclone event data is unavailable.');
+    appendHazardEmptyState(earthquakeList, 'Earthquake event data is unavailable.');
+    status.textContent = error.message || 'Nearby hazard feeds are unavailable.';
+  }
+}
+
+function appendHazardEmptyState(container, message) {
+  const empty = document.createElement('p');
+  empty.className = 'observed-hazard-empty';
+  empty.textContent = message;
+  container.append(empty);
+}
+
+function appendTrustedEventLink(container, href, label) {
+  if (!href) return;
+  const link = document.createElement('a');
+  link.href = href;
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  link.textContent = label;
+  container.append(link);
 }
 
 function initFloodPrediction() {
