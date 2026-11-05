@@ -573,50 +573,50 @@ function initWeather() {
 
   const latitudeInput = document.getElementById('lat-input');
   const longitudeInput = document.getElementById('lon-input');
+  const manualFields = document.getElementById('manual-location-fields');
+  const modeStatus = document.getElementById('location-mode-status');
+  const automaticModeButton = document.getElementById('automatic-location-mode');
+  const manualModeButton = document.getElementById('manual-location-mode');
   const storedLatitude = localStorage.getItem('locationLatitude');
   const storedLongitude = localStorage.getItem('locationLongitude');
   const storedName = localStorage.getItem('locationName');
-  if (storedLatitude && storedLongitude && latitudeInput && longitudeInput) {
-    latitudeInput.value = storedLatitude;
-    longitudeInput.value = storedLongitude;
+  if (latitudeInput && longitudeInput) {
+    latitudeInput.value = storedLatitude || '23.8103';
+    longitudeInput.value = storedLongitude || '90.4125';
   }
   let selectedLocationName = storedName || 'Dhaka, Bangladesh';
-  document.getElementById('run-location-prediction')?.addEventListener('click', () => {
-    loadLocationPrediction(latitudeInput.value, longitudeInput.value, selectedLocationName);
-  });
+  let refreshSequence = 0;
+  let modeRequestSequence = 0;
 
-  const refresh = async ({ useCoordinateLabel = false } = {}) => {
-    const lat = latitudeInput?.value || '23.8103';
-    const lon = longitudeInput?.value || '90.4125';
+  const refresh = async () => {
+    const lat = latitudeInput?.value;
+    const lon = longitudeInput?.value;
     if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lon)) ||
         Number(lat) < -90 || Number(lat) > 90 || Number(lon) < -180 || Number(lon) > 180) {
       document.getElementById('weather-status').textContent = 'Enter valid coordinates';
       return;
     }
-    if (useCoordinateLabel) {
-      selectedLocationName = await resolveLocationName(lat, lon);
-      saveLocation(Number(lat), Number(lon), selectedLocationName);
-    }
-    loadLocationPrediction(lat, lon, selectedLocationName);
+    const sequence = ++refreshSequence;
+    void loadLocationPrediction(lat, lon, selectedLocationName);
 
     try {
       document.getElementById('weather-status').textContent = 'Loading weather...';
-        const params = new URLSearchParams({ lat, lon, location_name: selectedLocationName });
+      const params = new URLSearchParams({ lat, lon, location_name: selectedLocationName });
       const response = await fetch(`/api/weather-data?${params}`);
       if (!response.ok) throw new Error(`Weather API request failed (${response.status})`);
       const data = await response.json();
+      if (sequence !== refreshSequence) return;
 
       document.getElementById('weather-status').textContent = data.status || 'Demo mode';
       document.getElementById('weather-source').textContent = data.source || 'Demo source';
       document.getElementById('weather-location').textContent = selectedLocationName;
-      document.getElementById('temperature-value').textContent = data.current?.temperature ? `${data.current.temperature.toFixed(1)}°C` : '--';
+      document.getElementById('temperature-value').textContent = Number.isFinite(data.current?.temperature) ? `${data.current.temperature.toFixed(1)}°C` : '--';
       document.getElementById('weather-condition').textContent = data.current?.condition || 'Current conditions';
-      document.getElementById('humidity-value').textContent = data.current?.humidity ? `${data.current.humidity}%` : '--';
-      document.getElementById('rainfall-value').textContent = data.current?.rainfall ? `${data.current.rainfall} mm` : '--';
-      document.getElementById('wind-speed-value').textContent = data.current?.wind_speed ? `${data.current.wind_speed} km/h` : '--';
-      document.getElementById('pressure-value').textContent = data.current?.pressure ? `${data.current.pressure} hPa` : '--';
+      document.getElementById('humidity-value').textContent = Number.isFinite(data.current?.humidity) ? `${data.current.humidity}%` : '--';
+      document.getElementById('rainfall-value').textContent = Number.isFinite(data.current?.rainfall) ? `${data.current.rainfall} mm` : '--';
+      document.getElementById('wind-speed-value').textContent = Number.isFinite(data.current?.wind_speed) ? `${data.current.wind_speed} km/h` : '--';
+      document.getElementById('pressure-value').textContent = Number.isFinite(data.current?.pressure) ? `${data.current.pressure} hPa` : '--';
       document.getElementById('last-updated').textContent = data.last_updated || '--';
-      document.getElementById('api-status').textContent = data.status || 'Demo';
 
       const hourly = document.getElementById('hourly-forecast');
       if (hourly) {
@@ -665,49 +665,98 @@ function initWeather() {
       }
     } catch (error) {
       console.error('Weather fetch failed', error);
+      if (sequence !== refreshSequence) return;
       document.getElementById('weather-status').textContent = 'Weather unavailable';
-      document.getElementById('api-status').textContent = error.message;
     }
   };
 
-  refresh();
-  document.getElementById('weather-refresh')?.addEventListener('click', () => refresh({ useCoordinateLabel: true }));
+  const setMode = (mode) => {
+    const automatic = mode === 'automatic';
+    if (manualFields) manualFields.hidden = automatic;
+    automaticModeButton?.setAttribute('aria-pressed', String(automatic));
+    manualModeButton?.setAttribute('aria-pressed', String(!automatic));
+    localStorage.setItem('locationMode', mode);
+  };
 
-  const searchPlace = async () => {
-    const placeInput = document.getElementById('place-input');
-    const query = placeInput?.value.trim();
-    if (!query) {
-      placeInput?.focus();
+  const useAutomaticLocation = () => {
+    const requestSequence = ++modeRequestSequence;
+    setMode('automatic');
+    if (!navigator.geolocation) {
+      if (modeStatus) modeStatus.textContent = 'Device location is not available. Showing your saved location instead.';
+      void refresh();
       return;
     }
 
-    const status = document.getElementById('weather-status');
-    status.textContent = 'Searching location...';
-    try {
-      const params = new URLSearchParams({ name: query, count: '1', language: 'en', format: 'json' });
-      const response = await fetch(`https://geocoding-api.open-meteo.com/v1/search?${params}`);
-      if (!response.ok) throw new Error(`Location search failed (${response.status})`);
-      const result = await response.json();
-      const place = result.results?.[0];
-      if (!place) {
-        status.textContent = 'Location not found';
-        return;
-      }
-
-      selectedLocationName = [place.name, place.admin1, place.country].filter(Boolean).join(', ');
-      latitudeInput.value = place.latitude;
-      longitudeInput.value = place.longitude;
-      saveLocation(place.latitude, place.longitude, selectedLocationName);
-      refresh();
-    } catch (error) {
-      console.error('Location search failed', error);
-      status.textContent = 'Location search unavailable';
-    }
+    if (modeStatus) modeStatus.textContent = 'Finding your location…';
+    navigator.geolocation.getCurrentPosition(async (position) => {
+      const { latitude, longitude } = position.coords;
+      const locationName = await resolveLocationName(latitude, longitude);
+      if (requestSequence !== modeRequestSequence) return;
+      selectedLocationName = locationName;
+      if (modeStatus) modeStatus.textContent = 'Using your current location. Forecasts update automatically.';
+      saveLocation(latitude, longitude, selectedLocationName);
+    }, (error) => {
+      if (requestSequence !== modeRequestSequence) return;
+      console.warn('Automatic location unavailable:', error.message);
+      if (modeStatus) modeStatus.textContent = 'Location access unavailable. Showing your saved or default location; you can choose a place manually.';
+      void refresh();
+    }, { enableHighAccuracy: false, timeout: 12000, maximumAge: 300000 });
   };
 
-  document.getElementById('place-search')?.addEventListener('click', searchPlace);
+  const useManualLocation = async () => {
+    const requestSequence = ++modeRequestSequence;
+    const placeInput = document.getElementById('place-input');
+    const query = placeInput?.value.trim();
+    const status = document.getElementById('weather-status');
+    let latitude = Number(latitudeInput?.value);
+    let longitude = Number(longitudeInput?.value);
+
+    if (query) {
+      status.textContent = 'Finding place…';
+      try {
+        const params = new URLSearchParams({ name: query, count: '1', language: 'en', format: 'json' });
+        const response = await fetch(`https://geocoding-api.open-meteo.com/v1/search?${params}`);
+        if (!response.ok) throw new Error(`Location search failed (${response.status})`);
+        const result = await response.json();
+        if (requestSequence !== modeRequestSequence) return;
+        const place = result.results?.[0];
+        if (!place) throw new Error('Location not found. Try a nearby city or enter coordinates.');
+        latitude = place.latitude;
+        longitude = place.longitude;
+        selectedLocationName = [place.name, place.admin1, place.country].filter(Boolean).join(', ');
+        latitudeInput.value = String(latitude);
+        longitudeInput.value = String(longitude);
+      } catch (error) {
+        if (requestSequence !== modeRequestSequence) return;
+        console.error('Location search failed:', error);
+        status.textContent = error.message || 'Location search unavailable';
+        return;
+      }
+    } else {
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude) ||
+          latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+        status.textContent = 'Enter a place name or valid coordinates';
+        return;
+      }
+      selectedLocationName = await resolveLocationName(latitude, longitude);
+      if (requestSequence !== modeRequestSequence) return;
+    }
+
+    if (requestSequence !== modeRequestSequence) return;
+    setMode('manual');
+    if (modeStatus) modeStatus.textContent = `Using manually selected location: ${selectedLocationName}`;
+    saveLocation(latitude, longitude, selectedLocationName);
+  };
+
+  automaticModeButton?.addEventListener('click', useAutomaticLocation);
+  manualModeButton?.addEventListener('click', () => {
+    modeRequestSequence += 1;
+    setMode('manual');
+    if (modeStatus) modeStatus.textContent = 'Search for a place or enter its coordinates, then show its outlook.';
+  });
+  document.getElementById('apply-manual-location')?.addEventListener('click', useManualLocation);
   document.getElementById('place-input')?.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') searchPlace();
+    if (event.key === 'Enter') useManualLocation();
   });
 
   window.addEventListener('disasterguard:location-changed', (event) => {
@@ -715,21 +764,33 @@ function initWeather() {
     latitudeInput.value = latitude;
     longitudeInput.value = longitude;
     selectedLocationName = name;
-    refresh();
+    if (localStorage.getItem('locationMode') === 'automatic' && modeStatus) {
+      modeStatus.textContent = `Using your current location: ${name}`;
+    }
+    void refresh();
   });
+
+  const initialMode = localStorage.getItem('locationMode') || 'automatic';
+  if (initialMode === 'manual') {
+    setMode('manual');
+    if (modeStatus) modeStatus.textContent = 'Using your saved location. Choose a place or enter coordinates to update it.';
+    void refresh();
+  } else {
+    useAutomaticLocation();
+  }
 }
+
+let activeLocationPrediction = 0;
 
 async function loadLocationPrediction(latitude, longitude, locationName) {
   const status = document.getElementById('location-risk-status');
   const results = document.getElementById('location-risk-results');
-  const updateButton = document.getElementById('run-location-prediction');
-  const database = document.getElementById('location-risk-database');
   const disclaimer = document.getElementById('location-risk-disclaimer');
   if (!status || !results) return;
 
+  const requestId = ++activeLocationPrediction;
   status.textContent = 'Loading live weather and terrain data…';
   results.replaceChildren();
-  if (updateButton) updateButton.disabled = true;
 
   try {
     const response = await fetch('/api/predict/location', {
@@ -743,10 +804,14 @@ async function loadLocationPrediction(latitude, longitude, locationName) {
     });
     const prediction = await response.json();
     if (!response.ok) throw new Error(prediction.error || `Prediction request failed (${response.status})`);
+    if (requestId !== activeLocationPrediction) return;
 
     prediction.risks.forEach((risk) => {
       const card = document.createElement('article');
       card.className = 'location-risk-card';
+      const icon = document.createElement('i');
+      icon.className = `fa-solid ${risk.hazard.toLowerCase().includes('flood') ? 'fa-water' : 'fa-mountain-sun'}`;
+      icon.setAttribute('aria-hidden', 'true');
       const heading = document.createElement('h4');
       heading.textContent = risk.hazard;
       const value = document.createElement('strong');
@@ -756,26 +821,16 @@ async function loadLocationPrediction(latitude, longitude, locationName) {
       category.textContent = `${risk.category} relative risk index`;
       const factors = document.createElement('p');
       factors.textContent = risk.factors.join(' · ');
-      card.append(heading, value, category, factors);
+      card.append(icon, heading, value, category, factors);
       results.append(card);
     });
 
     status.textContent = `${prediction.cached ? 'Cached forecast' : 'Updated'} from ${prediction.source} · ${prediction.forecast_horizon}`;
     if (disclaimer) disclaimer.textContent = prediction.disclaimer;
-    if (database) {
-      const persistence = prediction.database?.status;
-      database.textContent = persistence === 'saved'
-        ? 'MongoDB history: prediction saved.'
-        : persistence === 'unavailable'
-          ? 'MongoDB history: connection unavailable; prediction was not saved.'
-          : 'MongoDB history: not configured; prediction was not saved.';
-    }
   } catch (error) {
+    if (requestId !== activeLocationPrediction) return;
     console.error('Location risk update failed:', error);
     status.textContent = error.message || 'Live location risk data is unavailable.';
-    if (database) database.textContent = 'MongoDB history: prediction was not saved.';
-  } finally {
-    if (updateButton) updateButton.disabled = false;
   }
 }
 

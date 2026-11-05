@@ -257,7 +257,7 @@ def module_page(slug):
 
 @app.route("/weather")
 def weather():
-    return render_template("weather.html", page_title="Weather Monitoring")
+    return render_template("weather.html", page_title="Weather & Hazard Outlook")
 
 
 @app.route("/map")

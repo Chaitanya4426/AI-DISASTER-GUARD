@@ -3,23 +3,28 @@
 {% block content %}
 <section class="page-header">
   <div>
-    <span class="section-tag">Real-time weather</span>
-    <h2>Weather monitoring and forecasting</h2>
+    <span class="section-tag">Local conditions · live outlook</span>
+    <h2>Weather &amp; hazard outlook</h2>
+    <p class="module-description">Choose a location to see its current weather and automatically updated hazard indices.</p>
   </div>
   <div class="status-pill success" id="weather-status">Checking source...</div>
 </section>
 
 <section class="weather-grid" id="weather-page">
   <div class="panel-card weather-hero">
+    <div class="weather-hero-image" aria-hidden="true">
+      <img src="https://images.unsplash.com/photo-1534088568595-a066f410bcda?auto=format&amp;fit=crop&amp;w=1400&amp;q=85" alt="" />
+    </div>
     <div class="weather-header">
       <div>
         <span class="section-tag">Current conditions</span>
         <h3 id="weather-location">Dhaka, Bangladesh</h3>
       </div>
-      <span class="status-pill info" id="weather-source">Live data</span>
+      <span class="status-pill info" id="weather-source">Weather feed</span>
     </div>
     <div class="weather-main-display">
       <div class="temp-block">
+        <i class="fa-solid fa-cloud-sun-rain weather-condition-icon" aria-hidden="true"></i>
         <strong id="temperature-value">--</strong>
         <span id="weather-condition">--</span>
       </div>
@@ -31,46 +36,60 @@
       </div>
     </div>
     <div class="meta-row">
-      <span>Last updated: <strong id="last-updated">--</strong></span>
-      <span>API status: <strong id="api-status">--</strong></span>
+      <span>Updated <strong id="last-updated">--</strong></span>
     </div>
   </div>
 
-  <div class="panel-card search-panel">
+  <div class="panel-card search-panel location-selector">
     <div class="panel-head">
-      <h3>Weather location search</h3>
-    </div>
-    <div class="location-search">
-      <label for="place-input">Search by city or place</label>
-      <div class="place-search">
-        <input type="search" id="place-input" placeholder="e.g. Chattogram" autocomplete="off" />
-        <button type="button" class="secondary-btn" id="place-search">Find</button>
+      <div>
+        <span class="section-tag">Forecast setup</span>
+        <h3>Choose a location</h3>
       </div>
-      <label>
-        Latitude
-        <input type="number" id="lat-input" value="23.8103" step="0.0001" />
-      </label>
-      <label>
-        Longitude
-        <input type="number" id="lon-input" value="90.4125" step="0.0001" />
-      </label>
-      <button class="primary-btn" id="weather-refresh">Refresh data</button>
     </div>
+    <div class="location-mode-switch" role="group" aria-label="Location selection mode">
+      <button type="button" class="location-mode-button" id="automatic-location-mode" aria-pressed="true">
+        <i class="fa-solid fa-location-crosshairs" aria-hidden="true"></i>
+        <span>Use my location</span>
+        <small>Automatic</small>
+      </button>
+      <button type="button" class="location-mode-button" id="manual-location-mode" aria-pressed="false">
+        <i class="fa-solid fa-map-location-dot" aria-hidden="true"></i>
+        <span>Choose a place</span>
+        <small>Manual</small>
+      </button>
+    </div>
+    <p class="location-mode-status" id="location-mode-status" aria-live="polite">Checking your device location…</p>
+    <div class="location-search" id="manual-location-fields" hidden>
+      <label for="place-input">City, town, or coordinates</label>
+      <input type="search" id="place-input" placeholder="Search a place, e.g. Chattogram" autocomplete="off" />
+      <div class="coordinate-fields">
+        <label for="lat-input">Latitude
+          <input type="number" id="lat-input" value="23.8103" min="-90" max="90" step="0.0001" />
+        </label>
+        <label for="lon-input">Longitude
+          <input type="number" id="lon-input" value="90.4125" min="-180" max="180" step="0.0001" />
+        </label>
+      </div>
+      <button type="button" class="primary-btn" id="apply-manual-location">
+        <i class="fa-solid fa-magnifying-glass-location" aria-hidden="true"></i> Show this location
+      </button>
+    </div>
+    <p class="location-privacy-note"><i class="fa-solid fa-lock" aria-hidden="true"></i> Device location is only used to fetch your local outlook.</p>
   </div>
 </section>
 
 <section class="panel-card location-risk-panel" id="location-risk-panel">
   <div class="panel-head">
     <div>
-      <h3>Location-based hazard outlook</h3>
-      <p class="module-description">Uses the selected location's live 24-hour weather forecast and nearby terrain.</p>
+      <span class="section-tag">Next 24 hours</span>
+      <h3>Hazard outlook</h3>
+      <p class="module-description">Updates automatically whenever your forecast location changes.</p>
     </div>
-    <button type="button" class="primary-btn" id="run-location-prediction">Update risk outlook</button>
   </div>
-  <p class="status-pill neutral" id="location-risk-status" aria-live="polite">Waiting for live forecast data…</p>
+  <p class="status-pill neutral" id="location-risk-status" aria-live="polite">Waiting for location…</p>
   <div class="location-risk-grid" id="location-risk-results" aria-live="polite"></div>
   <p class="result-factors" id="location-risk-disclaimer">Risk indices are not calibrated probabilities or official disaster warnings.</p>
-  <p class="result-factors" id="location-risk-database">MongoDB history: not checked.</p>
 </section>
 
 <section class="chart-grid weather-chart-grid">
