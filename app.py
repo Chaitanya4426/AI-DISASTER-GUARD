@@ -37,6 +37,7 @@ mongo_client = None
 mongo_client_uri = None
 location_prediction_cache = {}
 location_prediction_cache_lock = Lock()
+location_provider_cooldown_until = 0
 
 
 class User(UserMixin, db.Model):
@@ -547,6 +548,8 @@ def save_location_prediction(prediction):
 
 @app.route("/api/predict/location", methods=["POST"])
 def location_prediction():
+    global location_provider_cooldown_until
+
     payload = request.get_json(silent=True)
     if not isinstance(payload, dict):
         return jsonify({"error": "Provide a JSON object with a location and coordinates."}), 400
@@ -563,6 +566,15 @@ def location_prediction():
         return jsonify({"error": "Coordinates are outside the valid range."}), 400
 
     location = str(payload.get("location", "Selected location")).strip()[:120] or "Selected location"
+    with location_prediction_cache_lock:
+        retry_seconds = math.ceil(location_provider_cooldown_until - time.monotonic())
+    if retry_seconds > 0:
+        response = jsonify({
+            "error": f"The live weather provider is temporarily rate-limiting requests. Please retry in {retry_seconds} seconds.",
+        })
+        response.headers["Retry-After"] = str(retry_seconds)
+        return response, 503
+
     cache_key = (round(latitude, 3), round(longitude, 3), location.casefold())
     with location_prediction_cache_lock:
         cached_prediction = location_prediction_cache.get(cache_key)
@@ -610,11 +622,15 @@ def location_prediction():
         status_code = error.response.status_code if error.response is not None else None
         if status_code == 429:
             retry_after = error.response.headers.get("Retry-After")
-            retry_message = f" Please retry after {retry_after} seconds." if retry_after and retry_after.isdigit() else " Please retry in a few minutes."
+            retry_seconds = max(60, min(int(retry_after), 900)) if retry_after and retry_after.isdigit() else 60
+            with location_prediction_cache_lock:
+                location_provider_cooldown_until = time.monotonic() + retry_seconds
             app.logger.warning("Open-Meteo rate-limited a live location prediction.")
-            return jsonify({
-                "error": f"The live weather provider is temporarily rate-limiting requests.{retry_message}",
-            }), 503
+            response = jsonify({
+                "error": f"The live weather provider is temporarily rate-limiting requests. Please retry in {retry_seconds} seconds.",
+            })
+            response.headers["Retry-After"] = str(retry_seconds)
+            return response, 503
         app.logger.warning("Live location data provider returned HTTP %s.", status_code)
         return jsonify({"error": "The live weather or terrain data provider is temporarily unavailable."}), 502
     except (requests.RequestException, ValueError, KeyError, TypeError) as error:
