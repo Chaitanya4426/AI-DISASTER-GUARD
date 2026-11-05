@@ -59,22 +59,16 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 
-@login_manager.request_loader
-def load_user_from_request(req):
-    if req.args.get('auth') == 'admin':
-        return User.query.filter_by(username='admin').first()
-    return None
-
-
 @app.before_request
 def ensure_initialized():
     if not hasattr(app, "_db_ready"):
         with app.app_context():
+            if app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite:"):
+                os.makedirs(os.path.join(basedir, "instance"), exist_ok=True)
             db.create_all()
-            if not User.query.filter_by(username="admin").first():
-                admin = User(username="admin", email="admin@disasterguard.ai", role="administrator")
-                admin.set_password("admin123")
-                db.session.add(admin)
+            admin = User.query.filter_by(username="admin", role="administrator").first()
+            if admin and admin.check_password("admin123"):
+                db.session.delete(admin)
                 db.session.commit()
         app._db_ready = True
 
@@ -293,7 +287,6 @@ def register():
         username = request.form.get("username", "").strip()
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
-        role = request.form.get("role", "registered_user")
 
         if not username or not email or not password:
             flash("All fields are required.", "error")
@@ -307,7 +300,7 @@ def register():
             flash("Password must be at least 8 characters long.", "error")
             return render_template("register.html", page_title="Register")
 
-        user = User(username=username, email=email, role=role)
+        user = User(username=username, email=email, role="registered_user")
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
