@@ -581,6 +581,9 @@ function initWeather() {
     longitudeInput.value = storedLongitude;
   }
   let selectedLocationName = storedName || 'Dhaka, Bangladesh';
+  document.getElementById('run-location-prediction')?.addEventListener('click', () => {
+    loadLocationPrediction(latitudeInput.value, longitudeInput.value, selectedLocationName);
+  });
 
   const refresh = async ({ useCoordinateLabel = false } = {}) => {
     const lat = latitudeInput?.value || '23.8103';
@@ -594,6 +597,7 @@ function initWeather() {
       selectedLocationName = await resolveLocationName(lat, lon);
       saveLocation(Number(lat), Number(lon), selectedLocationName);
     }
+    loadLocationPrediction(lat, lon, selectedLocationName);
 
     try {
       document.getElementById('weather-status').textContent = 'Loading weather...';
@@ -713,6 +717,66 @@ function initWeather() {
     selectedLocationName = name;
     refresh();
   });
+}
+
+async function loadLocationPrediction(latitude, longitude, locationName) {
+  const status = document.getElementById('location-risk-status');
+  const results = document.getElementById('location-risk-results');
+  const updateButton = document.getElementById('run-location-prediction');
+  const database = document.getElementById('location-risk-database');
+  const disclaimer = document.getElementById('location-risk-disclaimer');
+  if (!status || !results) return;
+
+  status.textContent = 'Loading live weather and terrain data…';
+  results.replaceChildren();
+  if (updateButton) updateButton.disabled = true;
+
+  try {
+    const response = await fetch('/api/predict/location', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        latitude: Number(latitude),
+        longitude: Number(longitude),
+        location: locationName,
+      }),
+    });
+    const prediction = await response.json();
+    if (!response.ok) throw new Error(prediction.error || `Prediction request failed (${response.status})`);
+
+    prediction.risks.forEach((risk) => {
+      const card = document.createElement('article');
+      card.className = 'location-risk-card';
+      const heading = document.createElement('h4');
+      heading.textContent = risk.hazard;
+      const value = document.createElement('strong');
+      value.className = 'location-risk-value';
+      value.textContent = `${risk.risk_index_percent}%`;
+      const category = document.createElement('p');
+      category.textContent = `${risk.category} relative risk index`;
+      const factors = document.createElement('p');
+      factors.textContent = risk.factors.join(' · ');
+      card.append(heading, value, category, factors);
+      results.append(card);
+    });
+
+    status.textContent = `Updated from ${prediction.source} · ${prediction.forecast_horizon}`;
+    if (disclaimer) disclaimer.textContent = prediction.disclaimer;
+    if (database) {
+      const persistence = prediction.database?.status;
+      database.textContent = persistence === 'saved'
+        ? 'MongoDB history: prediction saved.'
+        : persistence === 'unavailable'
+          ? 'MongoDB history: connection unavailable; prediction was not saved.'
+          : 'MongoDB history: not configured; prediction was not saved.';
+    }
+  } catch (error) {
+    console.error('Location risk update failed:', error);
+    status.textContent = error.message || 'Live location risk data is unavailable.';
+    if (database) database.textContent = 'MongoDB history: prediction was not saved.';
+  } finally {
+    if (updateButton) updateButton.disabled = false;
+  }
 }
 
 function initFloodPrediction() {

@@ -59,6 +59,20 @@
   </div>
 </section>
 
+<section class="panel-card location-risk-panel" id="location-risk-panel">
+  <div class="panel-head">
+    <div>
+      <h3>Location-based hazard outlook</h3>
+      <p class="module-description">Uses the selected location's live 24-hour weather forecast and nearby terrain.</p>
+    </div>
+    <button type="button" class="primary-btn" id="run-location-prediction">Update risk outlook</button>
+  </div>
+  <p class="status-pill neutral" id="location-risk-status" aria-live="polite">Waiting for live forecast data…</p>
+  <div class="location-risk-grid" id="location-risk-results" aria-live="polite"></div>
+  <p class="result-factors" id="location-risk-disclaimer">Risk indices are not calibrated probabilities or official disaster warnings.</p>
+  <p class="result-factors" id="location-risk-database">MongoDB history: not checked.</p>
+</section>
+
 <section class="chart-grid weather-chart-grid">
   <div class="panel-card">
     <div class="panel-head">

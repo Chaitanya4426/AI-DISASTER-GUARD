@@ -1,10 +1,13 @@
 import json
+import math
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import requests
 from flask import Flask, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import LoginManager, UserMixin, current_user, login_required, login_user, logout_user
+from pymongo import MongoClient
+from pymongo.errors import PyMongoError
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import validates
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -21,11 +24,15 @@ app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
     f"sqlite:///{os.path.join(basedir, 'instance', 'disasterguard.db')}",
 )
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["MONGODB_URI"] = os.environ.get("MONGODB_URI", "").strip()
+app.config["MONGODB_DATABASE"] = os.environ.get("MONGODB_DATABASE", "disasterguard")
 
 
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = "login"
+mongo_client = None
+mongo_client_uri = None
 
 
 class User(UserMixin, db.Model):
@@ -446,6 +453,216 @@ def weather_data():
         pass
 
     return jsonify(build_demo_weather(location_name))
+
+
+def normalized_risk_score(indicators):
+    available_weight = sum(weight for value, weight in indicators if value is not None)
+    if not available_weight:
+        raise ValueError("The live forecast did not include enough data to estimate risk.")
+    score = sum(
+        min(100, max(0, value)) * weight
+        for value, weight in indicators
+        if value is not None
+    ) / available_weight
+    return round(score, 1)
+
+
+def fetch_elevation_slope(latitude, longitude):
+    points = [
+        (latitude, longitude),
+        (latitude + 0.001, longitude),
+        (latitude - 0.001, longitude),
+        (latitude, longitude + 0.001),
+        (latitude, longitude - 0.001),
+    ]
+    response = requests.get(
+        "https://api.open-meteo.com/v1/elevation",
+        params={
+            "latitude": ",".join(str(point[0]) for point in points),
+            "longitude": ",".join(str(point[1]) for point in points),
+        },
+        timeout=10,
+    )
+    response.raise_for_status()
+    elevations = response.json().get("elevation", [])
+    if len(elevations) != len(points) or any(value is None for value in elevations):
+        raise ValueError("Terrain elevation data is unavailable for this location.")
+
+    center = elevations[0]
+    slopes = []
+    for (neighbor_latitude, neighbor_longitude), elevation in zip(points[1:], elevations[1:]):
+        latitude_distance = math.radians(neighbor_latitude - latitude) * 6371000
+        longitude_distance = math.radians(neighbor_longitude - longitude) * 6371000 * math.cos(math.radians(latitude))
+        distance = math.hypot(latitude_distance, longitude_distance)
+        if distance:
+            slopes.append(abs(elevation - center) / distance)
+    if not slopes:
+        raise ValueError("Terrain slope could not be calculated for this location.")
+    return center, math.degrees(math.atan(max(slopes)))
+
+
+def save_location_prediction(prediction):
+    global mongo_client, mongo_client_uri
+
+    uri = app.config["MONGODB_URI"]
+    if not uri:
+        return "not_configured"
+
+    try:
+        if mongo_client is None or mongo_client_uri != uri:
+            if mongo_client is not None:
+                mongo_client.close()
+            mongo_client = MongoClient(
+                uri,
+                appname="AI DisasterGuard",
+                connectTimeoutMS=5000,
+                serverSelectionTimeoutMS=5000,
+            )
+            mongo_client_uri = uri
+
+        mongo_client.admin.command("ping")
+        collection = mongo_client[app.config["MONGODB_DATABASE"]]["location_predictions"]
+        collection.create_index("expires_at", expireAfterSeconds=0)
+        now = datetime.utcnow()
+        document = {
+            "location": prediction["location"],
+            "latitude": prediction["latitude"],
+            "longitude": prediction["longitude"],
+            "source": prediction["source"],
+            "forecast_time": prediction["forecast_time"],
+            "risk_indices": prediction["risks"],
+            "created_at": now,
+            "expires_at": now + timedelta(days=90),
+        }
+        collection.insert_one(document)
+        return "saved"
+    except PyMongoError:
+        app.logger.exception("Could not save live location prediction to MongoDB.")
+        return "unavailable"
+
+
+@app.route("/api/predict/location", methods=["POST"])
+def location_prediction():
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({"error": "Provide a JSON object with a location and coordinates."}), 400
+
+    try:
+        latitude = float(payload.get("latitude"))
+        longitude = float(payload.get("longitude"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Enter valid latitude and longitude coordinates."}), 400
+
+    if not math.isfinite(latitude) or not math.isfinite(longitude):
+        return jsonify({"error": "Coordinates must be finite numbers."}), 400
+    if not -90 <= latitude <= 90 or not -180 <= longitude <= 180:
+        return jsonify({"error": "Coordinates are outside the valid range."}), 400
+
+    location = str(payload.get("location", "Selected location")).strip()[:120] or "Selected location"
+    try:
+        weather_response = requests.get(
+            "https://api.open-meteo.com/v1/forecast",
+            params={
+                "latitude": latitude,
+                "longitude": longitude,
+                "current": "precipitation,rain,pressure_msl,wind_speed_10m",
+                "hourly": "precipitation,precipitation_probability,soil_moisture_0_to_7cm",
+                "forecast_days": 2,
+                "timezone": "UTC",
+            },
+            timeout=12,
+        )
+        weather_response.raise_for_status()
+        weather = weather_response.json()
+        current = weather.get("current", {})
+        hourly = weather.get("hourly", {})
+        forecast_start = next(
+            (
+                index for index, value in enumerate(hourly.get("time", []))
+                if value >= current.get("time", "")
+            ),
+            0,
+        )
+        precipitation = hourly.get("precipitation", [])[forecast_start:forecast_start + 24]
+        probabilities = hourly.get("precipitation_probability", [])[forecast_start:forecast_start + 24]
+        soil_values = hourly.get("soil_moisture_0_to_7cm", [])[forecast_start:forecast_start + 24]
+        rainfall_24h = sum(value for value in precipitation if value is not None)
+        peak_rain_probability = max((value for value in probabilities if value is not None), default=None)
+        soil_moisture = next((value for value in soil_values if value is not None), None)
+        if soil_moisture is not None:
+            soil_moisture = soil_moisture * 100
+
+        elevation, slope_degrees = fetch_elevation_slope(latitude, longitude)
+    except (requests.RequestException, ValueError, KeyError, TypeError) as error:
+        app.logger.warning("Live location prediction unavailable: %s", error)
+        return jsonify({
+            "error": "Could not retrieve live weather and terrain data for this location. Please try again.",
+        }), 502
+
+    try:
+        current_rainfall = current.get("rain")
+        flood_risk = normalized_risk_score([
+            (min(rainfall_24h / 120 * 100, 100), 35),
+            (min(current_rainfall / 20 * 100, 100) if current_rainfall is not None else None, 15),
+            (peak_rain_probability, 25),
+            (soil_moisture, 25),
+        ])
+        landslide_risk = normalized_risk_score([
+            (min(rainfall_24h / 120 * 100, 100), 35),
+            (min(current_rainfall / 20 * 100, 100) if current_rainfall is not None else None, 15),
+            (peak_rain_probability, 15),
+            (soil_moisture, 20),
+            (min(slope_degrees / 45 * 100, 100), 15),
+        ])
+    except (TypeError, ValueError, ZeroDivisionError) as error:
+        app.logger.warning("Live location risk indicators are incomplete: %s", error)
+        return jsonify({"error": "The live data source did not return enough valid indicators for a risk estimate."}), 502
+
+    def risk_category(score):
+        if score >= 75:
+            return "Very high"
+        if score >= 50:
+            return "High"
+        if score >= 25:
+            return "Moderate"
+        return "Low"
+
+    prediction = {
+        "location": location,
+        "latitude": latitude,
+        "longitude": longitude,
+        "source": "Open-Meteo forecast and elevation data",
+        "forecast_time": weather.get("current", {}).get("time"),
+        "forecast_horizon": "Next 24 hours",
+        "risks": [
+            {
+                "hazard": "Flood",
+                "risk_index_percent": flood_risk,
+                "category": risk_category(flood_risk),
+                "factors": [
+                    f"{rainfall_24h:.1f} mm forecast precipitation in 24 hours",
+                    f"Peak precipitation probability: {peak_rain_probability}%" if peak_rain_probability is not None else "Precipitation probability unavailable",
+                    f"Soil moisture: {soil_moisture:.1f}%" if soil_moisture is not None else "Soil moisture unavailable",
+                ],
+            },
+            {
+                "hazard": "Landslide",
+                "risk_index_percent": landslide_risk,
+                "category": risk_category(landslide_risk),
+                "factors": [
+                    f"{rainfall_24h:.1f} mm forecast precipitation in 24 hours",
+                    f"Estimated local terrain slope: {slope_degrees:.1f}°",
+                    f"Soil moisture: {soil_moisture:.1f}%" if soil_moisture is not None else "Soil moisture unavailable",
+                ],
+            },
+        ],
+        "disclaimer": "These transparent weather-and-terrain risk indices are not calibrated disaster probabilities, a trained AI model, or official warnings. Check local emergency and meteorological authorities.",
+    }
+    prediction["database"] = {
+        "provider": "MongoDB Atlas",
+        "status": save_location_prediction(prediction),
+    }
+    return jsonify(prediction)
 
 
 @app.route("/api/predict/flood", methods=["POST"])

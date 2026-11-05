@@ -1138,8 +1138,42 @@ button, input, select {
 }
 
 .weather-hero,
-.search-panel {
+.search-panel,
+.location-risk-panel {
   padding: 22px;
+}
+
+.location-risk-panel {
+  margin-bottom: 22px;
+}
+
+.location-risk-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 14px;
+  margin: 16px 0;
+}
+
+.location-risk-card {
+  padding: 16px;
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  background: var(--glass-tile);
+}
+
+.location-risk-card h4 {
+  margin: 0;
+}
+
+.location-risk-value {
+  display: block;
+  margin: 10px 0;
+  font-size: 1.8rem;
+}
+
+.location-risk-card p {
+  margin: 6px 0;
+  color: var(--text-soft);
 }
 
 .weather-main-display {
